@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react'
-import { ConfigProvider, App as AntdApp, Layout, Typography, Form, Checkbox, Space, Button, Card, theme, Divider, Row, Col, Tag, Modal, Input, message, Switch, Tabs } from 'antd'
+import { ConfigProvider, App as AntdApp, Layout, Typography, Form, Checkbox, Space, Button, Card, theme, Divider, Row, Col, Tag, Modal, Input, message, Switch, Tabs, Table } from 'antd'
 import { EditOutlined, PlusOutlined, DeleteOutlined, ArrowRightOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 
 type Level = 0 | 1 | 2
@@ -953,6 +953,8 @@ export default function App() {
   const [newProjectRefAdeme, setNewProjectRefAdeme] = useState('')
   const [isAddScenarioModalVisible, setIsAddScenarioModalVisible] = useState(false)
   const [selectedCategoryForScenario, setSelectedCategoryForScenario] = useState<string>('')
+  const [homeEditMode, setHomeEditMode] = useState(false)
+  const [homeViewMode, setHomeViewMode] = useState<'cards' | 'table'>('cards')
   const [graphData, setGraphData] = useState<Array<{id: string, inputs: any, result: {ep_conso_5_usages_m2: number, emission_ges_5_usages_m2: number}}>>([])
   const [activeTab, setActiveTab] = useState<string>('form')
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -1133,6 +1135,36 @@ export default function App() {
     } catch (error) {
       console.error('Error creating new project:', error)
       message.error('Failed to create new project')
+    }
+  }
+
+  const handleDeleteProject = async (refAdeme: string) => {
+    try {
+      const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ref_ademe: refAdeme
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        console.error('Error deleting project:', errorData)
+        message.error(`Failed to delete project: ${response.status}`)
+        return
+      }
+
+      message.success('Project deleted successfully!')
+      
+      // Refresh the simulations list
+      fetchSimulationsList()
+      
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      message.error('Failed to delete project')
     }
   }
 
@@ -2237,7 +2269,7 @@ export default function App() {
                 window.location.href = window.location.origin
               }}
             >
-              Backoffice POC
+              DEV scandpe
             </Typography.Title>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               {isAuthenticated ? (
@@ -2294,8 +2326,15 @@ export default function App() {
                   Choose a simulation from the list below to configure
                 </Typography.Text>
                 
-                {/* New Project Button */}
-                <div style={{ marginBottom: '32px' }}>
+                {/* Header with New Project Button and Edit Mode Toggle */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: '32px',
+                  maxWidth: '600px',
+                  margin: '0 auto 32px auto'
+                }}>
                   <Button 
                     type="primary" 
                     size="large"
@@ -2309,6 +2348,20 @@ export default function App() {
                   >
                     + New Project
                   </Button>
+                  
+                  {/* Edit Mode Toggle */}
+                  <Button
+                    type={homeEditMode ? 'primary' : 'default'}
+                    icon={<EditOutlined />}
+                    onClick={() => setHomeEditMode(!homeEditMode)}
+                    style={{
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      height: 'auto'
+                    }}
+                  >
+                    {homeEditMode ? 'Exit Edit' : 'Edit'}
+                  </Button>
                 </div>
                 
                 {/* Debug info */}
@@ -2316,48 +2369,194 @@ export default function App() {
                   <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
                     Debug: simulationsList type: {typeof simulationsList}, length: {Array.isArray(simulationsList) ? simulationsList.length : 'N/A'}
                   </Typography.Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Typography.Text type="secondary" style={{ fontSize: '11px' }}>
+                      View: {' '}
+                      <span 
+                        style={{ 
+                          cursor: 'pointer', 
+                          color: homeViewMode === 'cards' ? '#1677ff' : '#666',
+                          textDecoration: homeViewMode === 'cards' ? 'underline' : 'none'
+                        }}
+                        onClick={() => setHomeViewMode('cards')}
+                      >
+                        cards
+                      </span>
+                      {' | '}
+                      <span 
+                        style={{ 
+                          cursor: 'pointer', 
+                          color: homeViewMode === 'table' ? '#1677ff' : '#666',
+                          textDecoration: homeViewMode === 'table' ? 'underline' : 'none'
+                        }}
+                        onClick={() => setHomeViewMode('table')}
+                      >
+                        table
+                      </span>
+                    </Typography.Text>
+                  </div>
                 </div>
                 
-                <Row gutter={[16, 16]} justify="center">
-                  {Array.isArray(simulationsList) && simulationsList.map((simulation) => (
-                    <Col xs={24} sm={12} md={8} lg={6} key={simulation.id}>
-                      <Card
-                        hoverable
-                        onClick={() => navigateToSimulation(simulation.ref_ademe)}
-                        style={{ 
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          border: '2px solid transparent',
-                          transition: 'all 0.3s ease'
-                        }}
-                        bodyStyle={{ padding: '24px 16px' }}
-                      >
-                        <div style={{ marginBottom: '16px' }}>
-                          <Typography.Title level={3} style={{ margin: 0, color: '#1677ff' }}>
-                            {simulation.ref_ademe}
-                          </Typography.Title>
-                        </div>
-                        
-                        <Tag 
-                          color={
-                            simulation.status === 'running' ? 'processing' :
-                            simulation.status === 'completed' ? 'success' :
-                            simulation.status === 'failed' ? 'error' : 'default'
-                          }
-                          style={{ fontSize: '12px', padding: '4px 8px' }}
+                {/* Cards View */}
+                {homeViewMode === 'cards' && (
+                  <Row gutter={[16, 16]} justify="center">
+                    {Array.isArray(simulationsList) && simulationsList.map((simulation) => (
+                      <Col xs={24} sm={12} md={8} lg={6} key={simulation.id}>
+                        <Card
+                          hoverable={!homeEditMode}
+                          onClick={homeEditMode ? undefined : () => navigateToSimulation(simulation.ref_ademe)}
+                          style={{ 
+                            cursor: homeEditMode ? 'default' : 'pointer',
+                            textAlign: 'center',
+                            border: '2px solid transparent',
+                            transition: 'all 0.3s ease',
+                            position: 'relative'
+                          }}
+                          bodyStyle={{ padding: '24px 16px' }}
                         >
-                          {simulation.status.toUpperCase()}
-                        </Tag>
-                        
-                        <div style={{ marginTop: '12px' }}>
-                          <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-                            ID: {simulation.id}
-                          </Typography.Text>
-                        </div>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
+                          {/* Delete button when in edit mode */}
+                          {homeEditMode && (
+                            <Button
+                              type="text"
+                              icon={<DeleteOutlined />}
+                              danger
+                              size="small"
+                              style={{
+                                position: 'absolute',
+                                top: '8px',
+                                right: '8px',
+                                zIndex: 10,
+                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                border: '1px solid #ff4d4f'
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteProject(simulation.ref_ademe)
+                              }}
+                            />
+                          )}
+                          
+                          <div style={{ marginBottom: '16px' }}>
+                            <Typography.Title level={3} style={{ margin: 0, color: '#1677ff' }}>
+                              {simulation.ref_ademe}
+                            </Typography.Title>
+                          </div>
+                          
+                          <Tag 
+                            color={
+                              simulation.status === 'running' ? 'processing' :
+                              simulation.status === 'completed' ? 'success' :
+                              simulation.status === 'failed' ? 'error' : 'default'
+                            }
+                            style={{ fontSize: '12px', padding: '4px 8px' }}
+                          >
+                            {simulation.status.toUpperCase()}
+                          </Tag>
+                          
+                          <div style={{ marginTop: '12px' }}>
+                            <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
+                              ID: {simulation.id}
+                            </Typography.Text>
+                          </div>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                )}
+                
+                {/* Table View */}
+                {homeViewMode === 'table' && (
+                  <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                    <Table
+                      dataSource={simulationsList}
+                      columns={[
+                        {
+                          title: 'ID',
+                          dataIndex: 'id',
+                          key: 'id',
+                          sorter: (a, b) => a.id - b.id,
+                          width: 80,
+                          render: (id) => (
+                            <Typography.Text code>{id}</Typography.Text>
+                          )
+                        },
+                        {
+                          title: 'Reference ADEME',
+                          dataIndex: 'ref_ademe',
+                          key: 'ref_ademe',
+                          sorter: (a, b) => a.ref_ademe.localeCompare(b.ref_ademe),
+                          render: (ref_ademe, record) => (
+                            <Button
+                              type="link"
+                              style={{ padding: 0, height: 'auto', fontSize: '14px' }}
+                              onClick={() => navigateToSimulation(ref_ademe)}
+                              disabled={homeEditMode}
+                            >
+                              {ref_ademe}
+                            </Button>
+                          )
+                        },
+                        {
+                          title: 'Status',
+                          dataIndex: 'status',
+                          key: 'status',
+                          sorter: (a, b) => a.status.localeCompare(b.status),
+                          width: 120,
+                          render: (status) => (
+                            <Tag 
+                              color={
+                                status === 'running' ? 'processing' :
+                                status === 'completed' ? 'success' :
+                                status === 'failed' ? 'error' : 'default'
+                              }
+                              style={{ fontSize: '12px', padding: '4px 8px' }}
+                            >
+                              {status.toUpperCase()}
+                            </Tag>
+                          )
+                        },
+                        {
+                          title: 'Actions',
+                          key: 'actions',
+                          width: 120,
+                          render: (_, record) => (
+                            <Space size="small">
+                              {homeEditMode ? (
+                                <Button
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  danger
+                                  size="small"
+                                  onClick={() => handleDeleteProject(record.ref_ademe)}
+                                >
+                                  Delete
+                                </Button>
+                              ) : (
+                                <Button
+                                  type="primary"
+                                  size="small"
+                                  onClick={() => navigateToSimulation(record.ref_ademe)}
+                                >
+                                  Open
+                                </Button>
+                              )}
+                            </Space>
+                          )
+                        }
+                      ]}
+                      rowKey="id"
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} projects`
+                      }}
+                      size="middle"
+                      bordered
+                      style={{ backgroundColor: 'white' }}
+                    />
+                  </div>
+                )}
                 
                 {simulationsList.length === 0 && (
                   <div style={{ marginTop: '32px' }}>
