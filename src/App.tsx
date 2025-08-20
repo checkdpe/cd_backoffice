@@ -1008,6 +1008,7 @@ export default function App() {
   })
   
   const [isProcessingAuth, setIsProcessingAuth] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const hasProcessedCode = React.useRef(false)
   
   // Save authentication state to localStorage
@@ -1547,7 +1548,7 @@ export default function App() {
       
     } catch (error) {
       console.error('Failed to initialize form:', error)
-      message.error('Failed to load form configuration')
+      message.error('Failed to load simulation configuration')
     } finally {
       setLoading(false)
     }
@@ -2190,7 +2191,7 @@ export default function App() {
         timestamp: new Date().toISOString()
       }
 
-      console.log('Submitting form data:', formData)
+      console.log('Applying simulation:', formData)
 
       const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_init', {
         method: 'POST',
@@ -2203,17 +2204,37 @@ export default function App() {
 
       if (!response.ok) {
         const errorData = await response.text()
-        console.error('Form submission failed:', { status: response.status, statusText: response.statusText, error: errorData })
-        throw new Error(`Form submission failed: ${response.status} - ${errorData}`)
+        console.error('Simulation application failed:', { status: response.status, statusText: response.statusText, error: errorData })
+        throw new Error(`Simulation application failed: ${response.status} - ${errorData}`)
       }
 
       const result = await response.json()
-      console.log('Form submitted successfully:', result)
-      message.success('Form data submitted successfully!')
+      console.log('Simulation applied successfully:', result)
+      message.success('Simulation applied successfully!')
+      
+      // Refresh graph data after successful submission
+      console.log('🔄 Refreshing graph data...')
+      try {
+        if (refAdeme) {
+          await fetchGraphData(refAdeme)
+          console.log('✅ Graph data refreshed successfully')
+          
+          // Auto-switch to results tab
+          setActiveTab('results')
+          console.log('🔄 Switched to results tab')
+        } else {
+          console.warn('No refAdeme available, skipping graph refresh')
+          message.warning('Simulation applied but no project reference available for results.')
+        }
+        
+      } catch (graphError) {
+        console.error('Failed to refresh graph data:', graphError)
+        message.warning('Simulation applied but failed to refresh results. Please check the Results tab manually.')
+      }
       
     } catch (error) {
       console.error('Error submitting form:', error)
-      message.error('Failed to submit form data')
+      message.error('Failed to apply simulation')
     }
   }
 
@@ -2313,9 +2334,9 @@ export default function App() {
           <Layout.Content style={{ padding: 24 }}>
             {!isAuthenticated ? (
               <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-                <Typography.Title level={2}>Welcome to Backoffice POC</Typography.Title>
+                <Typography.Title level={2}>Welcome to DEV scandpe</Typography.Title>
                 <Typography.Text type="secondary" style={{ fontSize: '16px' }}>
-                  Please log in to access the form configuration
+                  Please log in to access the simulation configuration
                 </Typography.Text>
               </div>
             ) : !refAdeme ? (
@@ -2581,7 +2602,7 @@ export default function App() {
                 items={[
                   {
                     key: 'form',
-                    label: 'Form Configuration',
+                    label: 'Simulation Configuration',
                     children: (
                       <div style={{ position: 'relative' }}>
                         {/* Floating House in left margin */}
@@ -2604,7 +2625,7 @@ export default function App() {
                                   <Card 
                     title={
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>Levels Form</span>
+                        <span>Scenarios</span>
                         <Typography.Text type="secondary" style={{ fontSize: '14px' }}>
                           Total combinations: <strong>{totalCombinations}</strong>
                         </Typography.Text>
@@ -2614,7 +2635,7 @@ export default function App() {
                   >
                     {loading ? (
                       <div style={{ textAlign: 'center', padding: '40px' }}>
-                        <Typography.Text>Loading form configuration...</Typography.Text>
+                        <Typography.Text>Loading simulation configuration...</Typography.Text>
                       </div>
                     ) : (
                       <Form form={form} layout="vertical" initialValues={values} onFinish={onFinish} onValuesChange={(_, all) => setValues(all as LevelsForm)}>
@@ -2929,10 +2950,11 @@ export default function App() {
                       <Button 
                         type="primary" 
                         onClick={submitFormData}
+                        loading={submitting}
                         disabled={totalCombinations > 10000}
                         title={totalCombinations > 10000 ? "max. combinations : 10,000" : ""}
                       >
-                        Submit Form Data
+                        {submitting ? 'Applying...' : 'Apply simulation'}
                       </Button>
                       <Button onClick={onReset}>Reset</Button>
                     </Space>
