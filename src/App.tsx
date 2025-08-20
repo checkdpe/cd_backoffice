@@ -247,7 +247,19 @@ function InteractiveHouse({ hoveredElement }: { hoveredElement: string | null })
 }
 
 // D3 Scatterplot Component
-function D3Scatterplot({ data, graphData }: { data: ResultData[], graphData: any[] }) {
+function D3Scatterplot({ 
+  data, 
+  graphData, 
+  selectedSimulId, 
+  selectedDotInfo, 
+  setSelectedDotInfo 
+}: { 
+  data: ResultData[], 
+  graphData: any[], 
+  selectedSimulId: string | null,
+  selectedDotInfo: { visible: boolean, content: string },
+  setSelectedDotInfo: (info: { visible: boolean, content: string }) => void
+}) {
   const svgRef = React.useRef<SVGSVGElement>(null)
   const [tooltip, setTooltip] = useState<{ visible: boolean, x: number, y: number, content: string }>({
     visible: false,
@@ -255,10 +267,6 @@ function D3Scatterplot({ data, graphData }: { data: ResultData[], graphData: any
     y: 0,
     content: ''
   })
-  const [selectedDotInfo, setSelectedDotInfo] = useState<{ visible: boolean, content: string }>({ visible: false, content: '' })
-  
-  // Get selected simul_id from URL
-  const selectedSimulId = new URLSearchParams(window.location.search).get('simul_id')
   
   React.useEffect(() => {
     if (!svgRef.current || data.length === 0) return
@@ -349,7 +357,7 @@ function D3Scatterplot({ data, graphData }: { data: ResultData[], graphData: any
             ? Object.entries(item.inputs).map(([key, value]) => `${key}: ${value}`).join('\n')
             : 'No inputs'
           
-          const content = `Index: ${index}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${item.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${item.result.emission_ges_5_usages_m2}\n\n💡 Click to go back to form`
+          const content = `Index: ${index}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${item.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${item.result.emission_ges_5_usages_m2}\n\n💡 Click to select this simulation`
           
           setSelectedDotInfo({
             visible: true,
@@ -378,22 +386,20 @@ function D3Scatterplot({ data, graphData }: { data: ResultData[], graphData: any
             ? Object.entries(item.inputs).map(([key, value]) => `${key}: ${value}`).join('\n')
             : 'No inputs'
           
-          const content = `Index: ${index}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${item.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${item.result.emission_ges_5_usages_m2}\n\n💡 Click to go back to form`
+          const content = `Index: ${index}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${item.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${item.result.emission_ges_5_usages_m2}\n\n💡 Click to select this simulation`
           
-          // On larger screens, show in left column; on mobile, show traditional tooltip
-          if (window.innerWidth > 768) {
-            setSelectedDotInfo({
-              visible: true,
-              content
-            })
-          } else {
-            setTooltip({
-              visible: true,
-              x: event.clientX + 10,
-              y: event.clientY - 10,
-              content
-            })
-          }
+          // Always show mouse-following tooltip
+          setSelectedDotInfo({
+            visible: true,
+            content
+          })
+          // Also update tooltip position for mouse-following
+          setTooltip({
+            visible: true,
+            x: event.clientX,
+            y: event.clientY,
+            content
+          })
         }
       })
       
@@ -404,35 +410,36 @@ function D3Scatterplot({ data, graphData }: { data: ResultData[], graphData: any
         }
         circle.style.cursor = 'default'
         
-        // Hide tooltip on mobile, but keep left column info if dot is selected
-        if (window.innerWidth <= 768) {
-          setTooltip({ visible: false, x: 0, y: 0, content: '' })
-        } else {
-          // On desktop, restore the selected simulation info if available
-          if (selectedSimulId && graphData[parseInt(selectedSimulId)]) {
-            const selectedItem = graphData[parseInt(selectedSimulId)]
-            const inputsText = Object.keys(selectedItem.inputs).length > 0 
-              ? Object.entries(selectedItem.inputs).map(([key, value]) => `${key}: ${value}`).join('\n')
-              : 'No inputs'
-            
-            const content = `Index: ${selectedSimulId}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${selectedItem.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${selectedItem.result.emission_ges_5_usages_m2}\n\n💡 Click to go back to form`
-            
-            setSelectedDotInfo({
-              visible: true,
-              content
-            })
-          } else {
-            // No selected simulation, hide the info
-            setSelectedDotInfo({ visible: false, content: '' })
-          }
+        // Hide hover tooltip, but keep selected simulation info if available
+        setSelectedDotInfo({ visible: false, content: '' })
+        setTooltip({ visible: false, x: 0, y: 0, content: '' })
+        
+        // Restore selected simulation info if available
+        if (selectedSimulId && graphData[parseInt(selectedSimulId)]) {
+          const selectedItem = graphData[parseInt(selectedSimulId)]
+          const inputsText = Object.keys(selectedItem.inputs).length > 0 
+            ? Object.entries(selectedItem.inputs).map(([key, value]) => `${key}: ${value}`).join('\n')
+            : 'No inputs'
+          
+          const content = `Index: ${selectedSimulId}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${selectedItem.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${selectedItem.result.emission_ges_5_usages_m2}\n\n💡 Click to select this simulation`
+          
+          setSelectedDotInfo({
+            visible: true,
+            content
+          })
         }
       })
       
-      // Add click event to navigate back to form with simul_id
+      // Add click event to update simul_id and stay on current tab
       circle.addEventListener('click', () => {
         const currentUrl = new URL(window.location.href)
         currentUrl.searchParams.set('simul_id', index.toString())
-        window.location.href = currentUrl.toString()
+        // Update URL without causing page navigation
+        window.history.replaceState({}, '', currentUrl.toString())
+        // Trigger a custom event to notify parent component
+        window.dispatchEvent(new CustomEvent('simulationSelected', { 
+          detail: { simulId: index.toString() } 
+        }))
       })
       
       g.appendChild(circle)
@@ -449,7 +456,7 @@ function D3Scatterplot({ data, graphData }: { data: ResultData[], graphData: any
     title.textContent = 'Cost vs Energy Consumption'
     g.appendChild(title)
     
-  }, [data])
+  }, [data, selectedSimulId])
   
   return (
     <div style={{ textAlign: 'center', position: 'relative' }}>
@@ -483,14 +490,13 @@ function D3Scatterplot({ data, graphData }: { data: ResultData[], graphData: any
         </div>
       )}
       
-      {/* Desktop Floating Info Panel (left column) */}
+      {/* Mouse-following tooltip for hover info */}
       {selectedDotInfo.visible && (
         <div
           style={{
             position: 'fixed',
-            left: '24px',
-            top: '50%',
-            transform: 'translateY(-50%)',
+            left: tooltip.x + 10,
+            top: tooltip.y - 10,
             backgroundColor: 'rgba(0, 0, 0, 0.9)',
             color: 'white',
             padding: '16px',
@@ -499,37 +505,151 @@ function D3Scatterplot({ data, graphData }: { data: ResultData[], graphData: any
             fontFamily: 'monospace',
             whiteSpace: 'pre-line',
             zIndex: 1000,
-            width: '300px',
+            maxWidth: '300px',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-            display: window.innerWidth > 768 ? 'block' : 'none'
+            pointerEvents: 'none'
           }}
         >
-          <div style={{ 
-            borderBottom: '1px solid rgba(255, 255, 255, 0.2)', 
-            paddingBottom: '8px', 
-            marginBottom: '12px',
-            fontSize: '14px',
-            fontWeight: 'bold'
-          }}>
-            {selectedSimulId === selectedDotInfo.content.match(/Index: (\d+)/)?.[1] ? 'Selected Simulation' : 'Hovering Over'}
-          </div>
           {selectedDotInfo.content}
         </div>
       )}
+      
     </div>
   )
 }
 
 type LevelsForm = Record<string, Level>
 
-function LevelCheckboxes({ entry, simulationId, resetTrigger, onCheckboxChange, onLabelUpdate, accessToken, refAdeme }: {
+function SettingsPage({ onClose, accessToken }: { onClose: () => void, accessToken: string | null }) {
+  const [settings, setSettings] = useState<any>({})
+  const [saving, setSaving] = useState(false)
+  const frontendVersion = import.meta.env.VITE_FRONT_VERSION || 'unknown'
+
+  React.useEffect(() => {
+    console.log('SettingsPage useEffect running - loadSettings called')
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    console.log('loadSettings function called at:', new Date().toISOString())
+    if (!accessToken) {
+      message.error('No access token available')
+      return
+    }
+
+    try {
+      const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/settings?frontend_version=${frontendVersion}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to load settings: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('Settings loaded:', result)
+      setSettings(result.data || {})
+
+      if (result.data && result.data.lastversion === false) {
+        message.warning('Your browser version is outdated. Please hard-refresh your browser (Ctrl+F5 or Cmd+Shift+R) to get the latest version.')
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error)
+      message.error('Failed to load settings')
+    }
+  }
+
+  const saveSettings = async () => {
+    if (!accessToken) {
+      message.error('No access token available')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/settings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to save settings: ${response.status}`)
+      }
+
+      message.success('Settings updated successfully')
+    } catch (error) {
+      console.error('Failed to save settings:', error)
+      message.error('Failed to save settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <Typography.Title level={4}>Application Settings</Typography.Title>
+      
+      <div style={{ marginBottom: '16px' }}>
+        <Typography.Text type="secondary">
+          Frontend Version: {frontendVersion}
+        </Typography.Text>
+      </div>
+
+      <Form layout="vertical">
+        <Form.Item label="3CL Endpoint">
+          <Input
+            value={settings['3cl_endpoint'] || ''}
+            onChange={(e) => setSettings({ ...settings, '3cl_endpoint': e.target.value })}
+            placeholder="Enter 3CL endpoint URL"
+          />
+        </Form.Item>
+
+        <Form.Item label="Last Version">
+          <Typography.Text type="secondary">
+            {settings.lastversion ? 'Up to date' : 'Outdated - please refresh'}
+          </Typography.Text>
+        </Form.Item>
+
+        <Form.Item>
+          <Space>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={saving}
+              disabled={true}
+              title="Save functionality temporarily disabled"
+            >
+              Save Settings (Disabled)
+            </Button>
+            <Button onClick={onClose}>
+              Close
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
+    </div>
+  )
+}
+
+function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheckboxChange, onLabelUpdate, accessToken, refAdeme, selectedChoices, isReadOnly }: {
   entry: Entry
   simulationId: string
+  cardIndex: number
   resetTrigger: number
   onCheckboxChange: (entryId: string, simulationId: string, checkedValues: Level[]) => void
   onLabelUpdate: (entryId: string, simulationId: string, choiceIndex: number, newLabel: string) => void
   accessToken: string | null
   refAdeme: string | null
+  selectedChoices: number[] | null
+  isReadOnly: boolean
 }) {
   // Initialize checked values based on API data
   const getInitialCheckedValues = (): Level[] => {
@@ -646,44 +766,55 @@ function LevelCheckboxes({ entry, simulationId, resetTrigger, onCheckboxChange, 
     <Form.Item name={entry.id}>
       <Space direction="vertical">
         <Checkbox 
-          disabled={true} 
+          disabled={true || isReadOnly} 
           checked={checkedValues.includes(0)}
           onChange={(e) => handleCheckboxChange(0, e.target.checked)}
         >
-          valeur courante
+          <span style={{
+            border: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '3px solid #000' : 'none',
+            padding: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '2px 4px' : '0',
+            borderRadius: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '4px' : '0',
+            fontWeight: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? 'bold' : 'normal'
+          }}>
+            valeur courante
+          </span>
         </Checkbox>
         <Checkbox 
-          disabled={!checkedValues.includes(0)}
+          disabled={!checkedValues.includes(0) || isReadOnly}
           checked={checkedValues.includes(1)}
           onChange={(e) => handleCheckboxChange(1, e.target.checked)}
         >
           <Space>
             <span style={{
               backgroundColor: isLevelModalVisible && selectedLevel === 1 ? '#bae7ff' : 'transparent',
-              border: isLevelModalVisible && selectedLevel === 1 ? '1px solid #1890ff' : '1px solid transparent',
-              padding: '2px 6px',
+              border: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 1 ? '3px solid #000' : (isLevelModalVisible && selectedLevel === 1 ? '1px solid #1890ff' : '1px solid transparent'),
+              padding: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 1 ? '4px 8px' : '2px 6px',
               borderRadius: '4px',
               transition: 'all 0.2s ease',
-              fontWeight: isLevelModalVisible && selectedLevel === 1 ? '500' : 'normal'
+              fontWeight: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 1 ? 'bold' : (isLevelModalVisible && selectedLevel === 1 ? '500' : 'normal')
             }}>
               {entry.simul.find(simul => simul.id === simulationId)?.choices?.[0]?.label || 'Level 1'}
             </span>
             <EditOutlined 
               style={{ 
                 fontSize: '12px', 
-                color: '#8c8c8c', 
-                cursor: 'pointer',
+                color: isReadOnly ? '#d9d9d9' : '#8c8c8c', 
+                cursor: isReadOnly ? 'not-allowed' : 'pointer',
                 padding: '4px',
                 borderRadius: '4px',
-                transition: 'background-color 0.2s ease'
+                transition: 'background-color 0.2s ease',
+                opacity: isReadOnly ? 0.5 : 1
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f0f0f0'
+                if (!isReadOnly) {
+                  e.currentTarget.style.backgroundColor = '#f0f0f0'
+                }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent'
               }}
               onClick={(e) => {
+                if (isReadOnly) return
                 e.preventDefault()
                 e.stopPropagation()
                 openLevelModal(1)
@@ -692,37 +823,41 @@ function LevelCheckboxes({ entry, simulationId, resetTrigger, onCheckboxChange, 
           </Space>
         </Checkbox>
         <Checkbox 
-          disabled={!checkedValues.includes(0)}
+          disabled={!checkedValues.includes(0) || isReadOnly}
           checked={checkedValues.includes(2)}
           onChange={(e) => handleCheckboxChange(2, e.target.checked)}
         >
           <Space>
             <span style={{
               backgroundColor: isLevelModalVisible && selectedLevel === 2 ? '#bae7ff' : 'transparent',
-              border: isLevelModalVisible && selectedLevel === 2 ? '1px solid #1890ff' : '1px solid transparent',
-              padding: '2px 6px',
+              border: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 2 ? '3px solid #000' : (isLevelModalVisible && selectedLevel === 2 ? '1px solid #1890ff' : '1px solid transparent'),
+              padding: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 2 ? '4px 8px' : '2px 6px',
               borderRadius: '4px',
               transition: 'all 0.2s ease',
-              fontWeight: isLevelModalVisible && selectedLevel === 2 ? '500' : 'normal'
+              fontWeight: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 2 ? 'bold' : (isLevelModalVisible && selectedLevel === 2 ? '500' : 'normal')
             }}>
               {entry.simul.find(simul => simul.id === simulationId)?.choices?.[1]?.label || 'Level 2'}
             </span>
             <EditOutlined 
               style={{ 
                 fontSize: '12px', 
-                color: '#8c8c8c', 
-                cursor: 'pointer',
+                color: isReadOnly ? '#d9d9d9' : '#8c8c8c', 
+                cursor: isReadOnly ? 'not-allowed' : 'pointer',
                 padding: '4px',
                 borderRadius: '4px',
-                transition: 'background-color 0.2s ease'
+                transition: 'background-color 0.2s ease',
+                opacity: isReadOnly ? 0.5 : 1
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f0f0f0'
+                if (!isReadOnly) {
+                  e.currentTarget.style.backgroundColor = '#f0f0f0'
+                }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent'
               }}
               onClick={(e) => {
+                if (isReadOnly) return
                 e.preventDefault()
                 e.stopPropagation()
                 openLevelModal(2)
@@ -1009,7 +1144,82 @@ export default function App() {
   
   const [isProcessingAuth, setIsProcessingAuth] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [selectedSimulId, setSelectedSimulId] = useState<string | null>(null)
+  const [selectedSimulationData, setSelectedSimulationData] = useState<{
+    status: string,
+    data?: {
+      choices?: number[],
+      inputs?: any,
+      outputs?: any
+    }
+  } | null>(null)
+  const [selectedDotInfo, setSelectedDotInfo] = useState<{ visible: boolean, content: string }>({ visible: false, content: '' })
+  const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false)
   const hasProcessedCode = React.useRef(false)
+  
+  // Sync selectedSimulId with URL parameter
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const simulId = urlParams.get('simul_id')
+    setSelectedSimulId(simulId)
+    // When simulId exists with refAdeme, fetch simulation details
+    if (simulId && refAdeme && accessToken) {
+      ;(async () => {
+        try {
+          const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          if (!response.ok) throw new Error(`Failed: ${response.status}`)
+          const result = await response.json()
+          setSelectedSimulationData(result)
+        } catch (e) {
+          console.error('Failed to fetch simulation data', e)
+          setSelectedSimulationData(null)
+        }
+      })()
+    } else if (!simulId) {
+      setSelectedSimulationData(null)
+    }
+  }, [window.location.search, refAdeme, accessToken])
+  
+  // Listen for simulation selection events from D3Scatterplot
+  React.useEffect(() => {
+    const handleSimulationSelected = (event: CustomEvent) => {
+      const { simulId } = event.detail
+      setSelectedSimulId(simulId)
+      
+      // Fetch simulation data for the selected simulation
+      if (simulId && refAdeme && accessToken) {
+        ;(async () => {
+          try {
+            const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            if (!response.ok) throw new Error(`Failed: ${response.status}`)
+            const result = await response.json()
+            setSelectedSimulationData(result)
+          } catch (e) {
+            console.error('Failed to fetch simulation data', e)
+            setSelectedSimulationData(null)
+          }
+        })()
+      }
+    }
+    
+    window.addEventListener('simulationSelected', handleSimulationSelected as EventListener)
+    
+    return () => {
+      window.removeEventListener('simulationSelected', handleSimulationSelected as EventListener)
+    }
+  }, [refAdeme, accessToken])
   
   // Save authentication state to localStorage
   const saveAuthState = (token: string, user: any) => {
@@ -2299,6 +2509,13 @@ export default function App() {
                     Welcome, {userInfo?.name || 'User'}
                   </Typography.Text>
                   <Button 
+                    icon={<EditOutlined />}
+                    onClick={() => setIsSettingsModalVisible(true)}
+                    style={{ marginRight: '8px' }}
+                  >
+                    Settings
+                  </Button>
+                  <Button 
                     onClick={() => {
                       setIsAuthenticated(false)
                       setUserInfo(null)
@@ -2651,7 +2868,7 @@ export default function App() {
                           {category}
                         </Typography.Title>
                         <Row gutter={[16, 8]}>
-                          {categoryEntries.map(entry => (
+                          {categoryEntries.map((entry, cardIndex) => (
                             <Col xs={24} sm={12} lg={8} key={entry.id}>
                               <Card 
                                 size="small" 
@@ -2666,20 +2883,22 @@ export default function App() {
                                       >
                                         {entry.label}
                                       </span>
-                                      <Button
-                                        type="text"
-                                        size="small"
-                                        icon={<EditOutlined />}
-                                        onClick={() => toggleEntryEditMode(entry.id)}
-                                        title={editMode[entry.id] ? "Exit edit mode" : "Enter edit mode"}
-                                        style={{ 
-                                          fontSize: '12px', 
-                                          padding: '4px', 
-                                          height: 'auto',
-                                          color: editMode[entry.id] ? '#1677ff' : '#8c8c8c',
-                                          minWidth: 'auto'
-                                        }}
-                                      />
+                                      {!selectedSimulId && (
+                                        <Button
+                                          type="text"
+                                          size="small"
+                                          icon={<EditOutlined />}
+                                          onClick={() => toggleEntryEditMode(entry.id)}
+                                          title={editMode[entry.id] ? "Exit edit mode" : "Enter edit mode"}
+                                          style={{ 
+                                            fontSize: '12px', 
+                                            padding: '4px', 
+                                            height: 'auto',
+                                            color: editMode[entry.id] ? '#1677ff' : '#8c8c8c',
+                                            minWidth: 'auto'
+                                          }}
+                                        />
+                                      )}
                                     </div>
                                     
                                     {/* Simulation occurrences */}
@@ -2729,6 +2948,7 @@ export default function App() {
                                               <Switch
                                                 checked={simul.active}
                                                 onChange={() => toggleSimulation(entry.id, simul.id)}
+                                                disabled={Boolean(selectedSimulId)}
                                                 size="small"
                                               />
                                             )}
@@ -2904,11 +3124,14 @@ export default function App() {
                                               <LevelCheckboxes 
                                                 entry={entry} 
                                                 simulationId={simul.id}
+                                                cardIndex={cardIndex}
                                                 resetTrigger={resetTrigger} 
                                                 onCheckboxChange={handleCheckboxChange}
                                                 onLabelUpdate={updateChoiceLabel}
                                                 accessToken={accessToken}
                                                 refAdeme={refAdeme}
+                                                selectedChoices={selectedSimulationData?.data?.choices || null}
+                                                isReadOnly={Boolean(new URLSearchParams(window.location.search).get('simul_id'))}
                                               />
                                             </div>
                                           )}
@@ -2951,8 +3174,14 @@ export default function App() {
                         type="primary" 
                         onClick={submitFormData}
                         loading={submitting}
-                        disabled={totalCombinations > 10000}
-                        title={totalCombinations > 10000 ? "max. combinations : 10,000" : ""}
+                        disabled={totalCombinations > 10000 || Boolean(selectedSimulId)}
+                        title={
+                          totalCombinations > 10000
+                            ? "max. combinations : 10,000"
+                            : Boolean(selectedSimulId)
+                              ? "Cannot apply simulation while viewing existing results"
+                              : ""
+                        }
                       >
                         {submitting ? 'Applying...' : 'Apply simulation'}
                       </Button>
@@ -2977,14 +3206,62 @@ export default function App() {
               {/* Left column for floating info panel (hidden on mobile) */}
               <Col xs={0} sm={0} md={6} lg={6} xl={6} xxl={6}>
                 <div style={{ position: 'sticky', top: '24px' }}>
-                  {/* This space is reserved for the floating info panel */}
+                  {/* Reserved for future content */}
                 </div>
               </Col>
               
               {/* Center column for the graph */}
               <Col xs={24} sm={24} md={12} lg={12} xl={12} xxl={12}>
                 <Card title="Simulation Results" bordered>
-                  <D3Scatterplot data={mockResults} graphData={graphData} />
+                  <D3Scatterplot 
+                    data={mockResults} 
+                    graphData={graphData} 
+                    selectedSimulId={selectedSimulId}
+                    selectedDotInfo={selectedDotInfo}
+                    setSelectedDotInfo={setSelectedDotInfo}
+                  />
+                  
+                  {/* JSON Editors for Inputs/Outputs when simul_id is selected */}
+                  {selectedSimulId && selectedSimulationData && (
+                    <>
+                      <Divider />
+                      <Typography.Title level={4} style={{ marginBottom: '16px' }}>
+                        Simulation Details
+                      </Typography.Title>
+                      
+                      <Row gutter={[16, 16]}>
+                        <Col span={12}>
+                          <Typography.Text strong>Inputs:</Typography.Text>
+                          <Input.TextArea
+                            value={selectedSimulationData.data?.inputs ? JSON.stringify(selectedSimulationData.data.inputs, null, 2) : '{}'}
+                            readOnly
+                            rows={8}
+                            style={{ 
+                              width: '100%', 
+                              fontFamily: 'monospace',
+                              fontSize: '12px',
+                              backgroundColor: '#f5f5f5'
+                            }}
+                          />
+                        </Col>
+                        <Col span={12}>
+                          <Typography.Text strong>Outputs:</Typography.Text>
+                          <Input.TextArea
+                            value={selectedSimulationData.data?.outputs ? JSON.stringify(selectedSimulationData.data.outputs, null, 2) : '{}'}
+                            readOnly
+                            rows={8}
+                            style={{ 
+                              width: '100%', 
+                              fontFamily: 'monospace',
+                              fontSize: '12px',
+                              backgroundColor: '#f5f5f5'
+                            }}
+                          />
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+                  
                   <Divider />
                   <Typography.Text strong>Data Summary:</Typography.Text>
                   <div style={{ marginTop: 8 }}>
@@ -2999,10 +3276,39 @@ export default function App() {
                 </Card>
               </Col>
               
-              {/* Right column for additional info (hidden on mobile) */}
+              {/* Right column for selected simulation info (hidden on mobile) */}
               <Col xs={0} sm={0} md={6} lg={6} xl={6} xxl={6}>
                 <div style={{ position: 'sticky', top: '24px' }}>
-                  {/* This space is reserved for future content */}
+                  {/* Selected simulation data panel - shows clicked simulation, not hovered */}
+                  {selectedSimulId && selectedSimulationData && (
+                    <div
+                      style={{
+                        backgroundColor: '#000',
+                        color: '#fff',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        marginBottom: '16px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                        fontSize: '12px',
+                        lineHeight: '1.4'
+                      }}
+                    >
+                      <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>
+                        Selected: Simulation #{selectedSimulId}
+                      </div>
+                      {selectedSimulationData.data?.choices && (
+                        <div style={{ marginBottom: '4px' }}>
+                          <strong>Choices:</strong> [{selectedSimulationData.data.choices.join(', ')}]
+                        </div>
+                      )}
+                      <div style={{ marginBottom: '4px' }}>
+                        <strong>Inputs:</strong> {selectedSimulationData.data?.inputs ? Object.keys(selectedSimulationData.data.inputs).length : 0} fields
+                      </div>
+                      <div>
+                        <strong>Outputs:</strong> {selectedSimulationData.data?.outputs ? Object.keys(selectedSimulationData.data.outputs).length : 0} fields
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Col>
             </Row>
@@ -3011,10 +3317,43 @@ export default function App() {
       ]}
     />
             )}
+
+            {/* Floating Black Div for Simulation Context - Show only on form tab when simul_id is selected */}
+            {activeTab === 'form' && selectedSimulId && (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: '20px', // Position under the house SVG
+                  top: 'calc(50% + 120px)', // Position below the house (house is roughly 240px tall, so center + 120px)
+                  backgroundColor: '#000',
+                  color: '#fff',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  maxWidth: '300px',
+                  zIndex: 999,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  fontSize: '12px',
+                  lineHeight: '1.4'
+                }}
+              >
+                <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Simulation #{selectedSimulId}
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                  <strong>Status:</strong> Viewing existing simulation
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                  <strong>Mode:</strong> Read-only configuration
+                </div>
+                <div style={{ marginTop: '12px', fontSize: '11px', opacity: 0.8 }}>
+                  All form elements are disabled in this view mode
+                </div>
+              </div>
+            )}
             
             {/* Floating button to navigate between form and results - only show when simul_id is present */}
-            {new URLSearchParams(window.location.search).get('simul_id') && (
-                            <div
+            {selectedSimulId && (
+              <div
                 style={{
                   position: 'fixed',
                   bottom: '24px',
@@ -3041,8 +3380,42 @@ export default function App() {
                     setActiveTab('results')
                   }
                 }}
-                title={`${activeTab === 'results' ? "Go back to form" : "Go to graph"} (Simulation ${new URLSearchParams(window.location.search).get('simul_id')})`}
+                title={`${activeTab === 'results' ? "Go back to form" : "Go to graph"} (Simulation ${selectedSimulId})`}
               >
+                {/* Close button (red cross) - top right */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    right: '-8px',
+                    width: '24px',
+                    height: '24px',
+                    backgroundColor: '#ff4d4f',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    border: '2px solid #fff',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    zIndex: 1001
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    // Remove simul_id from URL and clear context
+                    const currentUrl = new URL(window.location.href)
+                    currentUrl.searchParams.delete('simul_id')
+                    window.history.replaceState({}, '', currentUrl.toString())
+                    setSelectedSimulId(null)
+                    setSelectedSimulationData(null)
+                  }}
+                  title="Close simulation context"
+                >
+                  ×
+                </div>
+                
                 <div style={{ fontSize: '24px', marginBottom: '8px' }}>
                   {activeTab === 'results' ? <ArrowLeftOutlined /> : <ArrowRightOutlined />}
                 </div>
@@ -3053,7 +3426,7 @@ export default function App() {
                   textAlign: 'center',
                   lineHeight: '1'
                 }}>
-                  #{new URLSearchParams(window.location.search).get('simul_id')}
+                  #{selectedSimulId}
                 </div>
               </div>
             )}
@@ -3158,6 +3531,23 @@ export default function App() {
           <div style={{ textAlign: 'center', padding: '20px' }}>
             <Typography.Text>Loading scenario configuration...</Typography.Text>
           </div>
+        </Modal>
+
+        {/* Settings Modal */}
+        <Modal
+          title="Settings"
+          open={isSettingsModalVisible}
+          onCancel={() => setIsSettingsModalVisible(false)}
+          footer={null}
+          width={800}
+        >
+          {React.useMemo(() => (
+            <SettingsPage 
+              key="settings-page"
+              onClose={() => setIsSettingsModalVisible(false)}
+              accessToken={accessToken}
+            />
+          ), [accessToken])}
         </Modal>
       </AntdApp>
     </ConfigProvider>
