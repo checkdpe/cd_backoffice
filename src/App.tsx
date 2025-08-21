@@ -773,31 +773,29 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
             }}>
               {entry.simul.find(simul => simul.id === simulationId)?.choices?.[0]?.label || 'Level 1'}
             </span>
-            <EditOutlined 
-              style={{ 
-                fontSize: '12px', 
-                color: isReadOnly ? '#d9d9d9' : '#8c8c8c', 
-                cursor: isReadOnly ? 'not-allowed' : 'pointer',
-                padding: '4px',
-                borderRadius: '4px',
-                transition: 'background-color 0.2s ease',
-                opacity: isReadOnly ? 0.5 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (!isReadOnly) {
+            {!isReadOnly && (
+              <EditOutlined 
+                style={{ 
+                  fontSize: '12px', 
+                  color: '#8c8c8c', 
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f0f0f0'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
-              onClick={(e) => {
-                if (isReadOnly) return
-                e.preventDefault()
-                e.stopPropagation()
-                openLevelModal(1)
-              }}
-            />
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  openLevelModal(1)
+                }}
+              />
+            )}
             {selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 1 && (
               <EyeOutlined 
                 style={{ 
@@ -841,31 +839,29 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
             }}>
               {entry.simul.find(simul => simul.id === simulationId)?.choices?.[1]?.label || 'Level 2'}
             </span>
-            <EditOutlined 
-              style={{ 
-                fontSize: '12px', 
-                color: isReadOnly ? '#d9d9d9' : '#8c8c8c', 
-                cursor: isReadOnly ? 'not-allowed' : 'pointer',
-                padding: '4px',
-                borderRadius: '4px',
-                transition: 'background-color 0.2s ease',
-                opacity: isReadOnly ? 0.5 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (!isReadOnly) {
+            {!isReadOnly && (
+              <EditOutlined 
+                style={{ 
+                  fontSize: '12px', 
+                  color: '#8c8c8c', 
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f0f0f0'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
-              onClick={(e) => {
-                if (isReadOnly) return
-                e.preventDefault()
-                e.stopPropagation()
-                openLevelModal(2)
-              }}
-            />
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  openLevelModal(2)
+                }}
+              />
+            )}
             {selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 2 && (
               <EyeOutlined 
                 style={{ 
@@ -1193,7 +1189,22 @@ export default function App() {
   const [isStepInfoModalVisible, setIsStepInfoModalVisible] = useState(false)
   const [stepInfoData, setStepInfoData] = useState<any>(null)
   const [stepInfoLoading, setStepInfoLoading] = useState(false)
+  
+  // Simulation max ID state - calculated from graph data length minus 1
+  const [simulMaxId, setSimulMaxId] = useState<string | null>(null)
+  
   const hasProcessedCode = React.useRef(false)
+  
+  // Update simulMaxId when graphData changes
+  React.useEffect(() => {
+    if (graphData && graphData.length > 0) {
+      const maxId = graphData.length.toString()
+      setSimulMaxId(maxId)
+      console.log('📊 Updated simulMaxId to:', maxId, 'based on graph data length:', graphData.length)
+    } else {
+      setSimulMaxId(null)
+    }
+  }, [graphData])
   
   // Sync selectedSimulId with URL parameter
   React.useEffect(() => {
@@ -1204,7 +1215,7 @@ export default function App() {
     if (simulId && refAdeme && accessToken) {
       ;(async () => {
         try {
-          const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}`, {
+          const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}${simulMaxId ? `&simul_max_id=${simulMaxId}` : ''}`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${accessToken}`,
@@ -1234,7 +1245,7 @@ export default function App() {
       if (simulId && refAdeme && accessToken) {
         ;(async () => {
           try {
-            const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}`, {
+            const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}${simulMaxId ? `&simul_max_id=${simulMaxId}` : ''}`, {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -3776,36 +3787,37 @@ export default function App() {
                         Simulation Details
                       </Typography.Title>
                       
-                      <Row gutter={[16, 16]}>
-                        <Col span={12}>
-                          <Typography.Text strong>Inputs:</Typography.Text>
-                          <Input.TextArea
-                            value={selectedSimulationData.data?.inputs ? JSON.stringify(selectedSimulationData.data.inputs, null, 2) : '{}'}
-                            readOnly
-                            rows={8}
-                            style={{ 
-                              width: '100%', 
-                              fontFamily: 'monospace',
-                              fontSize: '12px',
-                              backgroundColor: '#f5f5f5'
-                            }}
-                          />
-                        </Col>
-                        <Col span={12}>
-                          <Typography.Text strong>Outputs:</Typography.Text>
-                          <Input.TextArea
-                            value={selectedSimulationData.data?.outputs ? JSON.stringify(selectedSimulationData.data.outputs, null, 2) : '{}'}
-                            readOnly
-                            rows={8}
-                            style={{ 
-                              width: '100%', 
-                              fontFamily: 'monospace',
-                              fontSize: '12px',
-                              backgroundColor: '#f5f5f5'
-                            }}
-                          />
-                        </Col>
-                      </Row>
+                      <div style={{ marginBottom: '16px' }}>
+                        <Typography.Text strong>Inputs:</Typography.Text>
+                        <Input.TextArea
+                          value={selectedSimulationData.data?.inputs ? JSON.stringify(selectedSimulationData.data.inputs, null, 2) : '{}'}
+                          readOnly
+                          rows={8}
+                          style={{ 
+                            width: '100%', 
+                            fontFamily: 'monospace',
+                            fontSize: '12px',
+                            backgroundColor: '#f5f5f5',
+                            marginTop: '8px'
+                          }}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Typography.Text strong>Outputs:</Typography.Text>
+                        <Input.TextArea
+                          value={selectedSimulationData.data?.outputs ? JSON.stringify(selectedSimulationData.data.outputs, null, 2) : '{}'}
+                          readOnly
+                          rows={8}
+                          style={{ 
+                            width: '100%', 
+                            fontFamily: 'monospace',
+                            fontSize: '12px',
+                            backgroundColor: '#f5f5f5',
+                            marginTop: '8px'
+                          }}
+                        />
+                      </div>
                     </>
                   )}
                   
