@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react'
 import { ConfigProvider, App as AntdApp, Layout, Typography, Form, Checkbox, Space, Button, Card, theme, Divider, Row, Col, Tag, Modal, Input, message, Switch, Tabs, Table } from 'antd'
-import { EditOutlined, PlusOutlined, DeleteOutlined, ArrowRightOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { EditOutlined, PlusOutlined, DeleteOutlined, ArrowRightOutlined, ArrowLeftOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
 
 type Level = 0 | 1 | 2
 
@@ -30,7 +30,7 @@ type Simulation = {
   id: string
   active: boolean
   label: string
-  description: string
+  description: string | null
   path: string
   choices: Choice[]
   scope?: ScopeItem[]
@@ -251,14 +251,12 @@ function D3Scatterplot({
   data, 
   graphData, 
   selectedSimulId, 
-  selectedDotInfo, 
-  setSelectedDotInfo 
+ 
 }: { 
   data: ResultData[], 
   graphData: any[], 
   selectedSimulId: string | null,
-  selectedDotInfo: { visible: boolean, content: string },
-  setSelectedDotInfo: (info: { visible: boolean, content: string }) => void
+
 }) {
   const svgRef = React.useRef<SVGSVGElement>(null)
   const [tooltip, setTooltip] = useState<{ visible: boolean, x: number, y: number, content: string }>({
@@ -357,12 +355,7 @@ function D3Scatterplot({
             ? Object.entries(item.inputs).map(([key, value]) => `${key}: ${value}`).join('\n')
             : 'No inputs'
           
-          const content = `Index: ${index}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${item.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${item.result.emission_ges_5_usages_m2}\n\n💡 Click to select this simulation`
-          
-          setSelectedDotInfo({
-            visible: true,
-            content
-          })
+          const content = `Inputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${item.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${item.result.emission_ges_5_usages_m2}`
         }
       } else {
         // Normal dot styling
@@ -386,14 +379,9 @@ function D3Scatterplot({
             ? Object.entries(item.inputs).map(([key, value]) => `${key}: ${value}`).join('\n')
             : 'No inputs'
           
-          const content = `Index: ${index}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${item.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${item.result.emission_ges_5_usages_m2}\n\n💡 Click to select this simulation`
+          const content = `Inputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${item.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${item.result.emission_ges_5_usages_m2}`
           
-          // Always show mouse-following tooltip
-          setSelectedDotInfo({
-            visible: true,
-            content
-          })
-          // Also update tooltip position for mouse-following
+          // Show tooltip
           setTooltip({
             visible: true,
             x: event.clientX,
@@ -410,24 +398,8 @@ function D3Scatterplot({
         }
         circle.style.cursor = 'default'
         
-        // Hide hover tooltip, but keep selected simulation info if available
-        setSelectedDotInfo({ visible: false, content: '' })
+        // Hide hover tooltip
         setTooltip({ visible: false, x: 0, y: 0, content: '' })
-        
-        // Restore selected simulation info if available
-        if (selectedSimulId && graphData[parseInt(selectedSimulId)]) {
-          const selectedItem = graphData[parseInt(selectedSimulId)]
-          const inputsText = Object.keys(selectedItem.inputs).length > 0 
-            ? Object.entries(selectedItem.inputs).map(([key, value]) => `${key}: ${value}`).join('\n')
-            : 'No inputs'
-          
-          const content = `Index: ${selectedSimulId}\n\nInputs:\n${inputsText}\n\nResults:\nep_conso_5_usages_m2: ${selectedItem.result.ep_conso_5_usages_m2}\nemission_ges_5_usages_m2: ${selectedItem.result.emission_ges_5_usages_m2}\n\n💡 Click to select this simulation`
-          
-          setSelectedDotInfo({
-            visible: true,
-            content
-          })
-        }
       })
       
       // Add click event to update simul_id and stay on current tab
@@ -490,29 +462,7 @@ function D3Scatterplot({
         </div>
       )}
       
-      {/* Mouse-following tooltip for hover info */}
-      {selectedDotInfo.visible && (
-        <div
-          style={{
-            position: 'fixed',
-            left: tooltip.x + 10,
-            top: tooltip.y - 10,
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            color: 'white',
-            padding: '16px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontFamily: 'monospace',
-            whiteSpace: 'pre-line',
-            zIndex: 1000,
-            maxWidth: '300px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-            pointerEvents: 'none'
-          }}
-        >
-          {selectedDotInfo.content}
-        </div>
-      )}
+
       
     </div>
   )
@@ -973,7 +923,7 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 
                 // Use choice_id as alt parameter to track which choice was selected
                 const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_setting_edit?ref_ademe=${refAdeme}&element=${elementId}&alt=${selectedChoice.id}`, {
-                  method: 'POST',
+                  method: 'PATCH',
                   headers: { 
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${accessToken}`
@@ -1083,11 +1033,12 @@ export default function App() {
   const [checkboxStates, setCheckboxStates] = useState<Record<string, Level[]>>({})
   const [hoveredElement, setHoveredElement] = useState<string | null>(null)
   const [editMode, setEditMode] = useState<Record<string, boolean>>({})
+  const [editingSimulLabels, setEditingSimulLabels] = useState<Record<string, string>>({})
+  const [editingSimulDescriptions, setEditingSimulDescriptions] = useState<Record<string, string>>({})
   const [simulationsList, setSimulationsList] = useState<SimulationListItem[]>([])
   const [isNewProjectModalVisible, setIsNewProjectModalVisible] = useState(false)
   const [newProjectRefAdeme, setNewProjectRefAdeme] = useState('')
-  const [isAddScenarioModalVisible, setIsAddScenarioModalVisible] = useState(false)
-  const [selectedCategoryForScenario, setSelectedCategoryForScenario] = useState<string>('')
+
   const [homeEditMode, setHomeEditMode] = useState(false)
   const [homeViewMode, setHomeViewMode] = useState<'cards' | 'table'>('cards')
   const [graphData, setGraphData] = useState<Array<{id: string, inputs: any, result: {ep_conso_5_usages_m2: number, emission_ges_5_usages_m2: number}}>>([])
@@ -1153,8 +1104,12 @@ export default function App() {
       outputs?: any
     }
   } | null>(null)
-  const [selectedDotInfo, setSelectedDotInfo] = useState<{ visible: boolean, content: string }>({ visible: false, content: '' })
+
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false)
+  const [isDeleteSimulationModalVisible, setIsDeleteSimulationModalVisible] = useState(false)
+  const [simulationToDelete, setSimulationToDelete] = useState<{ entryId: string; simulationId: string; simulationName: string } | null>(null)
+  const [addingScenario, setAddingScenario] = useState<Record<string, boolean>>({})
+  const [attachingScope, setAttachingScope] = useState<Record<string, boolean>>({})
   const hasProcessedCode = React.useRef(false)
   
   // Sync selectedSimulId with URL parameter
@@ -2046,16 +2001,36 @@ export default function App() {
   }
 
   const toggleSimulation = (entryId: string, simulationId: string) => {
-    setEntries(prev => prev.map(entry => 
-      entry.id === entryId ? { 
-        ...entry, 
-        simul: entry.simul.map(simul => 
-          simul.id === simulationId 
-            ? { ...simul, active: !simul.active }
-            : simul
-        )
-      } : entry
-    ))
+    setEntries(prev => prev.map(entry => {
+      if (entry.id === entryId) {
+        const currentSimul = entry.simul.find(simul => simul.id === simulationId)
+        if (!currentSimul) return entry
+        
+        const newActiveState = !currentSimul.active
+        
+        // If we're activating a simulation, deactivate all others for this element
+        if (newActiveState) {
+          return {
+            ...entry,
+            simul: entry.simul.map(simul => ({
+              ...simul,
+              active: simul.id === simulationId // Only the clicked one is active
+            }))
+          }
+        } else {
+          // If we're deactivating, just toggle the current one
+          return {
+            ...entry,
+            simul: entry.simul.map(simul => 
+              simul.id === simulationId 
+                ? { ...simul, active: newActiveState }
+                : simul
+            )
+          }
+        }
+      }
+      return entry
+    }))
   }
 
   const removeSimulation = (entryId: string, simulationId: string) => {
@@ -2067,45 +2042,310 @@ export default function App() {
     ))
   }
 
-  const toggleEntryEditMode = (entryId: string) => {
-    setEditMode(prev => ({
-      ...prev,
-      [entryId]: !prev[entryId]
-    }))
+  const confirmDeleteSimulation = (entryId: string, simulationId: string, simulationName: string) => {
+    setSimulationToDelete({ entryId, simulationId, simulationName })
+    setIsDeleteSimulationModalVisible(true)
   }
 
-  const openAddScenarioModal = async (category: string) => {
-    setSelectedCategoryForScenario(category)
-    setIsAddScenarioModalVisible(true)
-    
+  const handleDeleteSimulationConfirmed = () => {
+    if (simulationToDelete) {
+      removeSimulation(simulationToDelete.entryId, simulationToDelete.simulationId)
+      message.success('Simulation deleted successfully')
+      setIsDeleteSimulationModalVisible(false)
+      setSimulationToDelete(null)
+    }
+  }
+
+  const attachScope = async (entryId: string, simulationId: string) => {
     try {
-      if (!accessToken) {
-        message.error('No access token available')
+      if (!accessToken || !refAdeme) {
+        message.error('No access token or ref_ademe available')
         return
       }
 
-      // Load scenario configuration from /simul_group_edit endpoint
-      const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_group_edit?category=${category}`, {
-        method: 'GET',
+      // Set loading state for this specific simulation
+      setAttachingScope(prev => ({ ...prev, [`${entryId}-${simulationId}`]: true }))
+
+      // Call the simul_scope_init endpoint
+      const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_scope_init', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          ref_ademe: refAdeme,
+          group_id: simulationId,
+          element: entryId
+        })
       })
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`)
       }
 
-      const scenarioData = await response.json()
-      console.log('Scenario configuration loaded:', scenarioData)
+      const result = await response.json()
+      console.log('Scope attached successfully:', result)
       
-      // TODO: Handle the scenario data and populate the modal form
-      // This would include form fields for creating a new simulation scenario
+      // Refresh the simul_init data to get the new scope
+      await initializeForm()
+      
+      message.success('Scope attached successfully')
       
     } catch (error) {
-      console.error('Failed to load scenario configuration:', error)
-      message.error('Failed to load scenario configuration')
+      console.error('Failed to attach scope:', error)
+      message.error('Failed to attach scope')
+    } finally {
+      // Clear loading state
+      setAttachingScope(prev => ({ ...prev, [`${entryId}-${simulationId}`]: false }))
+    }
+  }
+
+  const toggleEntryEditMode = (entryId: string) => {
+    setEditMode(prev => {
+      const newEditMode = {
+        ...prev,
+        [entryId]: !prev[entryId]
+      }
+      
+      // If we're exiting edit mode, clear any ongoing label/description editing for this entry
+      if (!newEditMode[entryId]) {
+        // Clear any ongoing label editing for this entry
+        setEditingSimulLabels(prev => {
+          const newState = { ...prev }
+          Object.keys(newState).forEach(key => {
+            if (key.startsWith(`${entryId}-`)) {
+              delete newState[key]
+            }
+          })
+          return newState
+        })
+        
+        // Clear any ongoing description editing for this entry
+        setEditingSimulDescriptions(prev => {
+          const newState = { ...prev }
+          Object.keys(newState).forEach(key => {
+            if (key.startsWith(`${entryId}-`)) {
+              delete newState[key]
+            }
+          })
+          return newState
+        })
+      }
+      
+      return newEditMode
+    })
+  }
+
+
+
+  const toggleSimulLabelEdit = (entryId: string, simulId: string) => {
+    console.log('toggleSimulLabelEdit called with:', { entryId, simulId })
+    console.log('Current entries:', entries)
+    const currentEntry = entries.find(e => e.id === entryId)
+    console.log('Current entry found:', currentEntry)
+    const currentSimul = currentEntry?.simul.find(s => s.id === simulId)
+    console.log('Current simul found:', currentSimul)
+    if (currentSimul) {
+      console.log('Setting editing label to:', currentSimul.label)
+      setEditingSimulLabels(prev => ({
+        ...prev,
+        [`${entryId}-${simulId}`]: currentSimul.label
+      }))
+    } else {
+      console.log('No simulation found, cannot edit')
+    }
+  }
+
+  const saveSimulLabel = async (entryId: string, simulId: string) => {
+    const newLabel = editingSimulLabels[`${entryId}-${simulId}`]
+    if (newLabel && newLabel.trim()) {
+      try {
+        if (!accessToken) {
+          message.error('No access token available')
+          return
+        }
+
+        // Call the simul_group_edit endpoint
+        const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_group_edit', {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            entry: entryId,
+            group: simulId,
+            label: newLabel.trim()
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`)
+        }
+
+        // Update the simulation label in the entries state
+        setEntries(prev => prev.map(entry => 
+          entry.id === entryId 
+            ? {
+                ...entry,
+                simul: entry.simul.map(simul => 
+                  simul.id === simulId 
+                    ? { ...simul, label: newLabel.trim() }
+                    : simul
+                )
+              }
+            : entry
+        ))
+        
+        // Clear the editing label
+        setEditingSimulLabels(prev => {
+          const newState = { ...prev }
+          delete newState[`${entryId}-${simulId}`]
+          return newState
+        })
+        
+        message.success('Simulation label updated successfully')
+      } catch (error) {
+        console.error('Failed to save simulation label:', error)
+        message.error('Failed to save simulation label')
+      }
+    } else {
+      message.error('Label cannot be empty')
+    }
+  }
+
+  const cancelSimulLabelEdit = (entryId: string, simulId: string) => {
+    // Clear the editing label
+    setEditingSimulLabels(prev => {
+      const newState = { ...prev }
+      delete newState[`${entryId}-${simulId}`]
+      return newState
+    })
+  }
+
+  const toggleSimulDescriptionEdit = (entryId: string, simulId: string) => {
+    console.log('toggleSimulDescriptionEdit called with:', { entryId, simulId })
+    const currentEntry = entries.find(e => e.id === entryId)
+    const currentSimul = currentEntry?.simul.find(s => s.id === simulId)
+    if (currentSimul) {
+      console.log('Setting editing description to:', currentSimul.description || '')
+      setEditingSimulDescriptions(prev => ({
+        ...prev,
+        [`${entryId}-${simulId}`]: currentSimul.description || ''
+      }))
+    } else {
+      console.log('No simulation found, cannot edit description')
+    }
+  }
+
+  const saveSimulDescription = async (entryId: string, simulId: string) => {
+    const newDescription = editingSimulDescriptions[`${entryId}-${simulId}`]
+    if (newDescription !== undefined) {
+      try {
+        if (!accessToken) {
+          message.error('No access token available')
+          return
+        }
+
+        // Call the simul_group_edit endpoint
+        const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_group_edit', {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            entry: entryId,
+            group: simulId,
+            description: newDescription.trim() || null
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`)
+        }
+
+        // Update the simulation description in the entries state
+        setEntries(prev => prev.map(entry => 
+          entry.id === entryId 
+            ? {
+                ...entry,
+                simul: entry.simul.map(simul => 
+                  simul.id === simulId 
+                    ? { ...simul, description: newDescription.trim() || null }
+                    : simul
+              )
+            }
+          : entry
+        ))
+        
+        // Clear the editing description
+        setEditingSimulDescriptions(prev => {
+          const newState = { ...prev }
+          delete newState[`${entryId}-${simulId}`]
+          return newState
+        })
+        
+        message.success('Simulation description updated successfully')
+      } catch (error) {
+        console.error('Failed to save simulation description:', error)
+        message.error('Failed to save simulation description')
+      }
+    } else {
+      message.error('Description cannot be empty')
+    }
+  }
+
+  const cancelSimulDescriptionEdit = (entryId: string, simulId: string) => {
+    // Clear the editing description
+    setEditingSimulDescriptions(prev => {
+      const newState = { ...prev }
+      delete newState[`${entryId}-${simulId}`]
+      return newState
+    })
+  }
+
+  const openAddScenarioModal = async (entryId: string) => {
+    try {
+      if (!accessToken) {
+        message.error('No access token available')
+        return
+      }
+
+      // Set loading state for this specific entry
+      setAddingScenario(prev => ({ ...prev, [entryId]: true }))
+
+      // Call the simul_group_init endpoint
+      const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_group_init', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          entry: entryId
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('Scenario added successfully:', result)
+      
+      // Refresh the simul_init data
+      await initializeForm()
+      
+      message.success('Scenario added successfully')
+      
+    } catch (error) {
+      console.error('Failed to add scenario:', error)
+      message.error('Failed to add scenario')
+    } finally {
+      // Clear loading state
+      setAddingScenario(prev => ({ ...prev, [entryId]: false }))
     }
   }
 
@@ -2192,9 +2432,9 @@ export default function App() {
         return
       }
 
-      // POST the updated settings to the API
+      // PATCH the updated settings to the API
       const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_setting_edit', {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -2245,9 +2485,9 @@ export default function App() {
         return
       }
 
-      // POST the updated element path to the API
+      // PATCH the updated element path to the API
       const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_setting_edit', {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -2888,13 +3128,18 @@ export default function App() {
                                           type="text"
                                           size="small"
                                           icon={<EditOutlined />}
-                                          onClick={() => toggleEntryEditMode(entry.id)}
+                                          onClick={() => {
+                                            console.log('Main edit button clicked for entry:', entry.id)
+                                            console.log('Current editMode state:', editMode)
+                                            toggleEntryEditMode(entry.id)
+                                            console.log('After toggle, editMode will be:', !editMode[entry.id])
+                                          }}
                                           title={editMode[entry.id] ? "Exit edit mode" : "Enter edit mode"}
                                           style={{ 
                                             fontSize: '12px', 
                                             padding: '4px', 
                                             height: 'auto',
-                                            color: editMode[entry.id] ? '#1677ff' : '#8c8c8c',
+                                            color: editMode[entry.id] ? '#ff4d4f' : '#8c8c8c',
                                             minWidth: 'auto'
                                           }}
                                         />
@@ -2916,23 +3161,116 @@ export default function App() {
                                         }}>
                                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                              <Button 
-                                                type="link" 
-                                                size="small" 
-                                                style={{ padding: 0, fontSize: '13px', fontWeight: '500', color: simul.active ? '#52c41a' : '#8c8c8c' }} 
-                                                onClick={() => openSettingEditModal(entry.id, simul.id)}
-                                                title="Edit simulation settings"
-                                              >
-                                                {simul.label.length > 25 ? `...${simul.label.slice(-25)}` : simul.label}
-                                              </Button>
-                                              {simul.description && (
-                                                <span style={{ 
-                                                  fontSize: '11px', 
-                                                  color: simul.active ? '#73d13d' : '#bfbfbf',
-                                                  fontStyle: 'italic'
-                                                }}>
-                                                  {simul.description}
-                                                </span>
+                                              {editingSimulLabels[`${entry.id}-${simul.id}`] !== undefined ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                  <Input
+                                                    value={editingSimulLabels[`${entry.id}-${simul.id}`]}
+                                                    onChange={(e) => setEditingSimulLabels(prev => ({
+                                                      ...prev,
+                                                      [`${entry.id}-${simul.id}`]: e.target.value
+                                                    }))}
+                                                    style={{ fontSize: '12px', flex: 1 }}
+                                                    placeholder="Enter label"
+                                                    onPressEnter={() => saveSimulLabel(entry.id, simul.id)}
+                                                  />
+                                                  <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<CheckOutlined />}
+                                                    onClick={() => saveSimulLabel(entry.id, simul.id)}
+                                                    style={{ color: '#52c41a', padding: '2px 4px' }}
+                                                    title="Save label"
+                                                  />
+                                                  <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<CloseOutlined />}
+                                                    onClick={() => cancelSimulLabelEdit(entry.id, simul.id)}
+                                                    style={{ color: '#ff4d4f', padding: '2px 4px' }}
+                                                    title="Cancel edit"
+                                                  />
+                                                </div>
+                                              ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                  <Button 
+                                                    type="link" 
+                                                    size="small" 
+                                                    style={{ padding: 0, fontSize: '13px', fontWeight: '500', color: simul.active ? '#52c41a' : '#8c8c8c' }} 
+                                                    onClick={() => openSettingEditModal(entry.id, simul.id)}
+                                                    title="Edit simulation settings"
+                                                  >
+                                                    {simul.label.length > 25 ? `...${simul.label.slice(-25)}` : simul.label}
+                                                  </Button>
+                                                  {editMode[entry.id] && (
+                                                    <Button
+                                                      type="text"
+                                                      size="small"
+                                                      icon={<EditOutlined />}
+                                                      onClick={() => {
+                                                        console.log('Edit button clicked for:', { entryId: entry.id, simulId: simul.id })
+                                                        toggleSimulLabelEdit(entry.id, simul.id)
+                                                      }}
+                                                      style={{ padding: '2px 4px', fontSize: '10px' }}
+                                                      title="Edit label"
+                                                    />
+                                                  )}
+
+                                                </div>
+                                              )}
+                                              {editingSimulDescriptions[`${entry.id}-${simul.id}`] !== undefined ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                                                  <Input
+                                                    value={editingSimulDescriptions[`${entry.id}-${simul.id}`]}
+                                                    onChange={(e) => setEditingSimulDescriptions(prev => ({
+                                                      ...prev,
+                                                      [`${entry.id}-${simul.id}`]: e.target.value
+                                                    }))}
+                                                    size="small"
+                                                    style={{ fontSize: '11px', fontStyle: 'italic' }}
+                                                    placeholder="Enter description..."
+                                                  />
+                                                  <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<CheckOutlined />}
+                                                    onClick={() => saveSimulDescription(entry.id, simul.id)}
+                                                    style={{ color: '#52c41a', padding: '2px 4px' }}
+                                                    title="Save description"
+                                                  />
+                                                  <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<CloseOutlined />}
+                                                    onClick={() => cancelSimulDescriptionEdit(entry.id, simul.id)}
+                                                    style={{ color: '#ff4d4f', padding: '2px 4px' }}
+                                                    title="Cancel edit"
+                                                  />
+                                                </div>
+                                              ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                                                  {simul.description && (
+                                                    <span style={{ 
+                                                      fontSize: '11px', 
+                                                      color: simul.active ? '#73d13d' : '#bfbfbf',
+                                                      fontStyle: 'italic'
+                                                    }}>
+                                                      {simul.description}
+                                                    </span>
+                                                  )}
+                                                  {editMode[entry.id] && (
+                                                    <Button
+                                                      type="text"
+                                                      size="small"
+                                                      icon={<EditOutlined />}
+                                                      onClick={() => {
+                                                        console.log('Edit description button clicked for:', { entryId: entry.id, simulId: simul.id })
+                                                        toggleSimulDescriptionEdit(entry.id, simul.id)
+                                                      }}
+                                                      style={{ padding: '2px 4px', fontSize: '10px' }}
+                                                      title="Edit description"
+                                                    />
+                                                  )}
+                                                </div>
                                               )}
                                             </div>
                                             {editMode[entry.id] ? (
@@ -2941,7 +3279,7 @@ export default function App() {
                                                 size="small"
                                                 danger
                                                 icon={<DeleteOutlined />}
-                                                onClick={() => removeSimulation(entry.id, simul.id)}
+                                                onClick={() => confirmDeleteSimulation(entry.id, simul.id, simul.label)}
                                                 style={{ padding: '2px 4px', minWidth: 'auto' }}
                                               />
                                             ) : (
@@ -3118,6 +3456,31 @@ export default function App() {
                                             </div>
                                           )}
                                           
+                                          {/* Attach Scope button when no scope exists */}
+                                          {(!simul.scope || simul.scope.length === 0) && editMode[entry.id] && (
+                                            <div style={{ 
+                                              display: 'flex', 
+                                              justifyContent: 'center', 
+                                              marginTop: '8px',
+                                              marginBottom: '8px'
+                                            }}>
+                                              <Button
+                                                type="dashed"
+                                                size="small"
+                                                onClick={() => attachScope(entry.id, simul.id)}
+                                                loading={attachingScope[`${entry.id}-${simul.id}`]}
+                                                disabled={attachingScope[`${entry.id}-${simul.id}`]}
+                                                style={{ 
+                                                  fontSize: '11px',
+                                                  padding: '2px 8px',
+                                                  height: 'auto'
+                                                }}
+                                              >
+                                                {attachingScope[`${entry.id}-${simul.id}`] ? 'Attaching...' : 'Attach scope'}
+                                              </Button>
+                                            </div>
+                                          )}
+                                          
                                           {/* Choices for this simulation */}
                                           {simul.active && simul.choices && simul.choices.length > 0 && (
                                             <div style={{ marginTop: '8px' }}>
@@ -3156,8 +3519,10 @@ export default function App() {
                                       onClick={() => openAddScenarioModal(entry.id)}
                                       icon={<PlusOutlined />}
                                       size="small"
+                                      loading={addingScenario[entry.id]}
+                                      disabled={addingScenario[entry.id]}
                                     >
-                                      Add Scenario
+                                      {addingScenario[entry.id] ? 'Adding...' : 'Add Scenario'}
                                     </Button>
                                   </div>
                                 )}
@@ -3217,8 +3582,6 @@ export default function App() {
                     data={mockResults} 
                     graphData={graphData} 
                     selectedSimulId={selectedSimulId}
-                    selectedDotInfo={selectedDotInfo}
-                    setSelectedDotInfo={setSelectedDotInfo}
                   />
                   
                   {/* JSON Editors for Inputs/Outputs when simul_id is selected */}
@@ -3318,38 +3681,7 @@ export default function App() {
     />
             )}
 
-            {/* Floating Black Div for Simulation Context - Show only on form tab when simul_id is selected */}
-            {activeTab === 'form' && selectedSimulId && (
-              <div
-                style={{
-                  position: 'fixed',
-                  left: '20px', // Position under the house SVG
-                  top: 'calc(50% + 120px)', // Position below the house (house is roughly 240px tall, so center + 120px)
-                  backgroundColor: '#000',
-                  color: '#fff',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  maxWidth: '300px',
-                  zIndex: 999,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                  fontSize: '12px',
-                  lineHeight: '1.4'
-                }}
-              >
-                <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>
-                  Simulation #{selectedSimulId}
-                </div>
-                <div style={{ marginBottom: '4px' }}>
-                  <strong>Status:</strong> Viewing existing simulation
-                </div>
-                <div style={{ marginBottom: '4px' }}>
-                  <strong>Mode:</strong> Read-only configuration
-                </div>
-                <div style={{ marginTop: '12px', fontSize: '11px', opacity: 0.8 }}>
-                  All form elements are disabled in this view mode
-                </div>
-              </div>
-            )}
+
             
             {/* Floating button to navigate between form and results - only show when simul_id is present */}
             {selectedSimulId && (
@@ -3518,20 +3850,7 @@ export default function App() {
           </Form>
         </Modal>
 
-        <Modal
-          title="Add Scenario"
-          open={isAddScenarioModalVisible}
-          onCancel={() => {
-            setIsAddScenarioModalVisible(false)
-            setSelectedCategoryForScenario('')
-          }}
-          footer={null}
-          width={800}
-        >
-          <div style={{ textAlign: 'center', padding: '20px' }}>
-            <Typography.Text>Loading scenario configuration...</Typography.Text>
-          </div>
-        </Modal>
+
 
         {/* Settings Modal */}
         <Modal
@@ -3548,6 +3867,30 @@ export default function App() {
               accessToken={accessToken}
             />
           ), [accessToken])}
+        </Modal>
+
+        {/* Delete Simulation Confirmation Modal */}
+        <Modal
+          title="Delete Simulation"
+          open={isDeleteSimulationModalVisible}
+          onOk={handleDeleteSimulationConfirmed}
+          onCancel={() => {
+            setIsDeleteSimulationModalVisible(false)
+            setSimulationToDelete(null)
+          }}
+          okText="Delete"
+          cancelText="Cancel"
+          okButtonProps={{ danger: true }}
+        >
+          <div style={{ padding: '16px 0' }}>
+            <Typography.Text>
+              Are you sure you want to delete the simulation <strong>"{simulationToDelete?.simulationName}"</strong>?
+            </Typography.Text>
+            <br />
+            <Typography.Text type="warning" style={{ fontSize: '14px' }}>
+              This action cannot be undone.
+            </Typography.Text>
+          </div>
         </Modal>
       </AntdApp>
     </ConfigProvider>
