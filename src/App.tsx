@@ -251,7 +251,7 @@ function D3Scatterplot({
   data, 
   graphData, 
   selectedSimulId, 
- 
+
 }: { 
   data: ResultData[], 
   graphData: any[], 
@@ -266,8 +266,38 @@ function D3Scatterplot({
     content: ''
   })
   
+  // Zoom state management
+  const [zoomState, setZoomState] = useState<{
+    minCost: number,
+    maxCost: number,
+    minKwh: number,
+    maxKwh: number
+  } | null>(null)
+  
+  // Selection rectangle state
+  const [selectionRect, setSelectionRect] = useState<{
+    startX: number,
+    startY: number,
+    currentX: number,
+    currentY: number,
+    isSelecting: boolean
+  } | null>(null)
+  
+  const [isZoomed, setIsZoomed] = useState(false)
+  
   React.useEffect(() => {
     if (!svgRef.current || data.length === 0) return
+    
+    // Calculate data bounds for initial or reset view
+    const dataBounds = {
+      minCost: Math.min(...data.map(d => d.estimated_cost)),
+      maxCost: Math.max(...data.map(d => d.estimated_cost)),
+      minKwh: Math.min(...data.map(d => d.kwh)),
+      maxKwh: Math.max(...data.map(d => d.kwh))
+    }
+    
+    // Use zoom state if available, otherwise use data bounds
+    const bounds = zoomState || dataBounds
     
     // Clear previous content
     const svg = svgRef.current
@@ -283,18 +313,140 @@ function D3Scatterplot({
     g.setAttribute('transform', `translate(${margin.left},${margin.top})`)
     svg.appendChild(g)
     
-    // Set up scales
+    // Add border around the plotting area to show where users can draw zoom rectangles
+    const plotBorder = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    plotBorder.setAttribute('width', width.toString())
+    plotBorder.setAttribute('height', height.toString())
+    plotBorder.setAttribute('fill', 'none')
+    plotBorder.setAttribute('stroke', '#e8e8e8')
+    plotBorder.setAttribute('stroke-width', '1')
+    plotBorder.setAttribute('stroke-dasharray', '3,3')
+    plotBorder.setAttribute('opacity', '0.6')
+    g.appendChild(plotBorder)
+    
+    // Set up scales using current bounds
     const xScale = (value: number) => {
-      const minCost = Math.min(...data.map(d => d.estimated_cost))
-      const maxCost = Math.max(...data.map(d => d.estimated_cost))
-      return ((value - minCost) / (maxCost - minCost)) * width
+      return ((value - bounds.minCost) / (bounds.maxCost - bounds.minCost)) * width
     }
     
     const yScale = (value: number) => {
-      const minKwh = Math.min(...data.map(d => d.kwh))
-      const maxKwh = Math.max(...data.map(d => d.kwh))
-      return height - ((value - minKwh) / (maxKwh - minKwh)) * height
+      return height - ((value - bounds.minKwh) / (bounds.maxKwh - bounds.minKwh)) * height
     }
+    
+    // Inverse scale functions for coordinate conversion
+    const xInverse = (pixel: number) => {
+      return bounds.minCost + (pixel / width) * (bounds.maxCost - bounds.minCost)
+    }
+    
+    const yInverse = (pixel: number) => {
+      return bounds.maxKwh - ((pixel / height) * (bounds.maxKwh - bounds.minKwh))
+    }
+    
+    // Add invisible overlay for zoom selection (must be first to capture events)
+    const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    overlay.setAttribute('x', '0')
+    overlay.setAttribute('y', '0')
+    overlay.setAttribute('width', width.toString())
+    overlay.setAttribute('height', height.toString())
+    overlay.setAttribute('fill', 'transparent')
+    overlay.setAttribute('cursor', 'crosshair')
+    g.appendChild(overlay)
+    
+    // Selection rectangle element
+    const selectionRectElement = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    selectionRectElement.setAttribute('fill', 'rgba(22, 119, 255, 0.2)')
+    selectionRectElement.setAttribute('stroke', '#1677ff')
+    selectionRectElement.setAttribute('stroke-width', '1')
+    selectionRectElement.setAttribute('stroke-dasharray', '3,3')
+    selectionRectElement.style.display = 'none'
+    g.appendChild(selectionRectElement)
+    
+    // Mouse event handlers for zoom selection
+    let isDragging = false
+    let startPoint = { x: 0, y: 0 }
+    
+    overlay.addEventListener('mousedown', (event) => {
+      const rect = svg.getBoundingClientRect()
+      startPoint = {
+        x: event.clientX - rect.left - margin.left,
+        y: event.clientY - rect.top - margin.top
+      }
+      isDragging = true
+      selectionRectElement.style.display = 'block'
+      setSelectionRect({
+        startX: startPoint.x,
+        startY: startPoint.y,
+        currentX: startPoint.x,
+        currentY: startPoint.y,
+        isSelecting: true
+      })
+    })
+    
+    svg.addEventListener('mousemove', (event) => {
+      if (!isDragging) return
+      
+      const rect = svg.getBoundingClientRect()
+      const currentPoint = {
+        x: event.clientX - rect.left - margin.left,
+        y: event.clientY - rect.top - margin.top
+      }
+      
+      // Constrain to chart area
+      currentPoint.x = Math.max(0, Math.min(width, currentPoint.x))
+      currentPoint.y = Math.max(0, Math.min(height, currentPoint.y))
+      
+      // Update selection rectangle
+      const rectX = Math.min(startPoint.x, currentPoint.x)
+      const rectY = Math.min(startPoint.y, currentPoint.y)
+      const rectWidth = Math.abs(currentPoint.x - startPoint.x)
+      const rectHeight = Math.abs(currentPoint.y - startPoint.y)
+      
+      selectionRectElement.setAttribute('x', rectX.toString())
+      selectionRectElement.setAttribute('y', rectY.toString())
+      selectionRectElement.setAttribute('width', rectWidth.toString())
+      selectionRectElement.setAttribute('height', rectHeight.toString())
+      
+      setSelectionRect(prev => prev ? {
+        ...prev,
+        currentX: currentPoint.x,
+        currentY: currentPoint.y
+      } : null)
+    })
+    
+    svg.addEventListener('mouseup', (event) => {
+      if (!isDragging) return
+      isDragging = false
+      selectionRectElement.style.display = 'none'
+      
+      const rect = svg.getBoundingClientRect()
+      const endPoint = {
+        x: Math.max(0, Math.min(width, event.clientX - rect.left - margin.left)),
+        y: Math.max(0, Math.min(height, event.clientY - rect.top - margin.top))
+      }
+      
+      // Only zoom if selection is large enough (minimum 10x10 pixels)
+      const rectWidth = Math.abs(endPoint.x - startPoint.x)
+      const rectHeight = Math.abs(endPoint.y - startPoint.y)
+      
+      if (rectWidth > 10 && rectHeight > 10) {
+        // Convert pixel coordinates to data coordinates
+        const x1 = xInverse(Math.min(startPoint.x, endPoint.x))
+        const x2 = xInverse(Math.max(startPoint.x, endPoint.x))
+        const y1 = yInverse(Math.max(startPoint.y, endPoint.y)) // Note: y is inverted
+        const y2 = yInverse(Math.min(startPoint.y, endPoint.y))
+        
+        // Set new zoom state
+        setZoomState({
+          minCost: x1,
+          maxCost: x2,
+          minKwh: y1,
+          maxKwh: y2
+        })
+        setIsZoomed(true)
+      }
+      
+      setSelectionRect(null)
+    })
     
     // Add axes
     const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line')
@@ -315,6 +467,66 @@ function D3Scatterplot({
     yAxis.setAttribute('stroke-width', '1')
     g.appendChild(yAxis)
     
+    // Add X-axis ticks and labels
+    const xTickCount = 5
+    const xRange = bounds.maxCost - bounds.minCost
+    const xStep = xRange / (xTickCount - 1)
+    
+    for (let i = 0; i < xTickCount; i++) {
+      const value = bounds.minCost + (i * xStep)
+      const x = xScale(value)
+      
+      // Tick line
+      const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      tick.setAttribute('x1', x.toString())
+      tick.setAttribute('y1', height.toString())
+      tick.setAttribute('x2', x.toString())
+      tick.setAttribute('y2', (height + 5).toString())
+      tick.setAttribute('stroke', '#ccc')
+      tick.setAttribute('stroke-width', '1')
+      g.appendChild(tick)
+      
+      // Tick label
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      label.setAttribute('x', x.toString())
+      label.setAttribute('y', (height + 18).toString())
+      label.setAttribute('text-anchor', 'middle')
+      label.setAttribute('fill', '#666')
+      label.setAttribute('font-size', '10')
+      label.textContent = `${Math.round(value).toLocaleString()}€`
+      g.appendChild(label)
+    }
+    
+    // Add Y-axis ticks and labels
+    const yTickCount = 5
+    const yRange = bounds.maxKwh - bounds.minKwh
+    const yStep = yRange / (yTickCount - 1)
+    
+    for (let i = 0; i < yTickCount; i++) {
+      const value = bounds.minKwh + (i * yStep)
+      const y = yScale(value)
+      
+      // Tick line
+      const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      tick.setAttribute('x1', '0')
+      tick.setAttribute('y1', y.toString())
+      tick.setAttribute('x2', '-5')
+      tick.setAttribute('y2', y.toString())
+      tick.setAttribute('stroke', '#ccc')
+      tick.setAttribute('stroke-width', '1')
+      g.appendChild(tick)
+      
+      // Tick label
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      label.setAttribute('x', '-8')
+      label.setAttribute('y', (y + 3).toString())
+      label.setAttribute('text-anchor', 'end')
+      label.setAttribute('fill', '#666')
+      label.setAttribute('font-size', '10')
+      label.textContent = `${Math.round(value).toLocaleString()}`
+      g.appendChild(label)
+    }
+    
     // Add axis labels
     const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text')
     xLabel.setAttribute('x', (width / 2).toString())
@@ -333,8 +545,14 @@ function D3Scatterplot({
     yLabel.textContent = 'Energy Consumption (kWh)'
     g.appendChild(yLabel)
     
-    // Add data points
+    // Add data points (only show points within current view)
     data.forEach((point, index) => {
+      // Check if point is within current view bounds
+      if (point.estimated_cost < bounds.minCost || point.estimated_cost > bounds.maxCost ||
+          point.kwh < bounds.minKwh || point.kwh > bounds.maxKwh) {
+        return // Skip points outside current view
+      }
+      
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
       circle.setAttribute('cx', xScale(point.estimated_cost).toString())
       circle.setAttribute('cy', yScale(point.kwh).toString())
@@ -403,7 +621,8 @@ function D3Scatterplot({
       })
       
       // Add click event to update simul_id and stay on current tab
-      circle.addEventListener('click', () => {
+      circle.addEventListener('click', (event) => {
+        event.stopPropagation() // Prevent zoom selection
         const currentUrl = new URL(window.location.href)
         currentUrl.searchParams.set('simul_id', index.toString())
         // Update URL without causing page navigation
@@ -425,19 +644,42 @@ function D3Scatterplot({
     title.setAttribute('font-size', '16')
     title.setAttribute('font-weight', 'bold')
     title.setAttribute('fill', '#333')
-    title.textContent = 'Cost vs Energy Consumption'
+    title.textContent = isZoomed ? 'Cost vs Energy Consumption (Zoomed)' : 'Cost vs Energy Consumption'
     g.appendChild(title)
     
-  }, [data, selectedSimulId])
+  }, [data, selectedSimulId, zoomState])
+  
+  const resetZoom = () => {
+    setZoomState(null)
+    setIsZoomed(false)
+  }
   
   return (
     <div style={{ textAlign: 'center', position: 'relative' }}>
+      {/* Reset zoom button */}
+      {isZoomed && (
+        <div style={{ marginBottom: '8px', textAlign: 'right' }}>
+          <Button 
+            size="small" 
+            onClick={resetZoom}
+            style={{ fontSize: '11px' }}
+          >
+            Reset Zoom
+          </Button>
+        </div>
+      )}
+      
       <svg
         ref={svgRef}
         width="600"
         height="400"
         style={{ border: '1px solid #d9d9d9', borderRadius: '6px' }}
       />
+      
+      {/* Instructions */}
+      <div style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>
+        {isZoomed ? 'Click "Reset Zoom" to return to full view' : 'Click and drag to zoom to an area'}
+      </div>
       
       {/* Mobile Tooltip (positioned tooltip) */}
       {tooltip.visible && (
@@ -461,9 +703,6 @@ function D3Scatterplot({
           {tooltip.content}
         </div>
       )}
-      
-
-      
     </div>
   )
 }
