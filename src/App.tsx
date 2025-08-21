@@ -3081,14 +3081,14 @@ export default function App() {
                         {/* Form content with columns layout */}
                         <Row gutter={24}>
                           {/* Left column for floating info panel (hidden on mobile) */}
-                          <Col xs={0} sm={0} md={6} lg={6} xl={6} xxl={6}>
+                          <Col xs={0} sm={0} md={4} lg={4} xl={4} xxl={4}>
                             <div style={{ position: 'sticky', top: '24px' }}>
                               {/* Reserved for future content */}
                             </div>
                           </Col>
                           
                           {/* Center column for the form */}
-                          <Col xs={24} sm={24} md={14} lg={14} xl={14} xxl={14}>
+                          <Col xs={24} sm={24} md={17} lg={17} xl={17} xxl={17}>
                                   <Card 
                     title={
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -3391,7 +3391,30 @@ export default function App() {
                                                   
                                                   const directionalArrow = getDirectionalArrow(checkText)
                                                   
-
+                                                  // Check if the corresponding data value is null
+                                                  let isNullValue = false
+                                                  if (selectedSimulationData?.data?.inputs && Array.isArray(selectedSimulationData.data.inputs)) {
+                                                    // Find the current card index among enabled cards
+                                                    const enabledCards: {entryId: string, simulId: string, entryIdx: number, simulIdx: number, label: string}[] = []
+                                                    entries.forEach((e, entryIdx) => {
+                                                      e.simul.filter(s => s.active).forEach((s, simulIdx) => {
+                                                        enabledCards.push({entryId: e.id, simulId: s.id, entryIdx, simulIdx, label: s.label || 'no-label'})
+                                                      })
+                                                    })
+                                                    const cardIndex = enabledCards.findIndex(s => s.entryId === entry.id && s.simulId === simul.id)
+                                                    
+                                                    if (cardIndex >= 0 && selectedSimulationData.data.inputs[cardIndex]) {
+                                                      const cardInputs = selectedSimulationData.data.inputs[cardIndex]
+                                                      // Look for keys that contain the scope index pattern
+                                                      const scopeDataKeys = Object.keys(cardInputs).filter(key => 
+                                                        key.includes(`[${index}]`) && 
+                                                        (key.includes('donnee_entree') || key.includes('donnee_intermediaire'))
+                                                      )
+                                                      
+                                                      // Check if any of the scope data keys have null values
+                                                      isNullValue = scopeDataKeys.some(key => cardInputs[key] === null)
+                                                    }
+                                                  }
                                                   
                                                   return (
                                                     <div
@@ -3409,7 +3432,9 @@ export default function App() {
                                                           width: '20px',
                                                           height: '20px',
                                                           borderRadius: '50%',
-                                                          backgroundColor: scopeItem.selected ? '#1677ff' : '#d9d9d9',
+                                                          backgroundColor: scopeItem.selected 
+                                                            ? (isNullValue ? '#ff4d4f' : '#1677ff')  // Red if null, blue if selected
+                                                            : (isNullValue ? '#ff7875' : '#d9d9d9'), // Light red if null, gray if not selected
                                                           border: '1px solid #ccc',
                                                           opacity: scopeItem.selected ? 1 : 0.6,
                                                           transition: 'all 0.2s ease',
@@ -3417,7 +3442,11 @@ export default function App() {
                                                           position: 'relative'
                                                         }}
                                                         onClick={() => toggleScopeItem(entry.id, simul.id, scopeItem.id)}
-                                                        title={scopeItem.description ? `${scopeItem.label}: ${scopeItem.description}` : scopeItem.label}
+                                                        title={
+                                                          scopeItem.description 
+                                                            ? `${scopeItem.label}: ${scopeItem.description}${isNullValue ? ' (NULL data)' : ''}` 
+                                                            : `${scopeItem.label}${isNullValue ? ' (NULL data)' : ''}`
+                                                        }
                                                         onMouseEnter={(e) => {
                                                           e.currentTarget.style.transform = 'scale(1.2)'
                                                           e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)'
@@ -3574,7 +3603,7 @@ export default function App() {
                           </Col>
                           
                           {/* Right column for selected simulation info (hidden on mobile) */}
-                          <Col xs={0} sm={0} md={4} lg={4} xl={4} xxl={4}>
+                          <Col xs={0} sm={0} md={3} lg={3} xl={3} xxl={3}>
                             <div style={{ position: 'sticky', top: '24px' }}>
                               {/* Selected simulation data panel - shows clicked simulation, not hovered */}
                               {selectedSimulId && selectedSimulationData && (
@@ -3618,14 +3647,14 @@ export default function App() {
           children: (
             <Row gutter={24}>
               {/* Left column for floating info panel (hidden on mobile) */}
-              <Col xs={0} sm={0} md={6} lg={6} xl={6} xxl={6}>
+              <Col xs={0} sm={0} md={4} lg={4} xl={4} xxl={4}>
                 <div style={{ position: 'sticky', top: '24px' }}>
                   {/* Reserved for future content */}
                 </div>
               </Col>
               
               {/* Center column for the graph */}
-              <Col xs={24} sm={24} md={14} lg={14} xl={14} xxl={14}>
+              <Col xs={24} sm={24} md={17} lg={17} xl={17} xxl={17}>
                 <Card title="Simulation Results" bordered>
                   <D3Scatterplot 
                     data={mockResults} 
@@ -3690,7 +3719,7 @@ export default function App() {
               </Col>
               
               {/* Right column for selected simulation info (hidden on mobile) */}
-              <Col xs={0} sm={0} md={4} lg={4} xl={4} xxl={4}>
+              <Col xs={0} sm={0} md={3} lg={3} xl={3} xxl={3}>
                 <div style={{ position: 'sticky', top: '24px' }}>
                   {/* Selected simulation data panel - shows clicked simulation, not hovered */}
                   {selectedSimulId && selectedSimulationData && (
