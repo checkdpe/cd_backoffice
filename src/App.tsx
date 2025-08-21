@@ -832,7 +832,7 @@ function SettingsPage({ onClose, accessToken }: { onClose: () => void, accessTok
   )
 }
 
-function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheckboxChange, onLabelUpdate, accessToken, refAdeme, selectedChoices, isReadOnly, openStepInfoModal }: {
+function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheckboxChange, onLabelUpdate, accessToken, refAdeme, selectedChoices, isReadOnly, openStepInfoModal, simulationData }: {
   entry: Entry
   simulationId: string
   cardIndex: number
@@ -844,6 +844,7 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
   selectedChoices: number[] | null
   isReadOnly: boolean
   openStepInfoModal: (entryId: string, simulationId: string, stepIndex: number) => void
+  simulationData?: any
 }) {
   // Initialize checked values based on API data
   const getInitialCheckedValues = (): Level[] => {
@@ -863,6 +864,17 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
   const [jsonData, setJsonData] = useState<any>({})
   const [jsonText, setJsonText] = useState<string>('{}')
   const [humanReadable, setHumanReadable] = useState<string>('')
+  
+  // Tooltip state for eye icon hover
+  const [tooltip, setTooltip] = useState<{
+    visible: boolean
+    x: number
+    y: number
+    content: string
+    entryId: string
+    simulationId: string
+    stepIndex: number
+  } | null>(null)
 
   const handleCheckboxChange = (level: Level, checked: boolean) => {
     let newCheckedValues: Level[]
@@ -893,6 +905,74 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
   React.useEffect(() => {
     onCheckboxChange(entry.id, simulationId, checkedValues)
   }, [checkedValues, entry.id, simulationId, onCheckboxChange])
+  
+  // Debug tooltip state changes
+  React.useEffect(() => {
+    if (tooltip) {
+      console.log('Tooltip state changed:', tooltip)
+    }
+  }, [tooltip])
+
+    // Function to get JSON data for tooltip from simulation data
+  const getJsonDataForTooltip = (stepIndex: number) => {
+    try {
+      console.log('getJsonDataForTooltip called with:', { stepIndex, cardIndex, simulationData: simulationData ? 'exists' : 'null' })
+      
+      if (!simulationData || !simulationData.inputs) {
+        console.log('No simulation data or inputs')
+        return `No simulation data available\nsimulationData: ${JSON.stringify(simulationData)}`
+      }
+      
+      console.log('simulationData.inputs:', simulationData.inputs)
+      console.log('cardIndex:', cardIndex)
+      
+      // Get the inputs data for this card index (same logic as openStepInfoModal)
+      let choiceInputs = Array.isArray(simulationData.inputs) 
+        ? simulationData.inputs[cardIndex] || {}
+        : simulationData.inputs
+      
+      console.log('choiceInputs:', choiceInputs)
+      
+      if (Object.keys(choiceInputs).length === 0) {
+        console.log('No choice inputs found')
+        return `No input data available for cardIndex ${cardIndex}`
+      }
+      
+      // Get the parent element to find its path
+      const parentElementPath = entry.path || `/config/${entry.id}`
+      
+      // Clean the JSON data by removing parent element path references (same as modal)
+      const cleanJsonFromParentPath = (obj: any, parentElementPath: string): any => {
+        if (!obj || typeof obj !== 'object') return obj
+        
+        if (Array.isArray(obj)) {
+          return obj.map(item => cleanJsonFromParentPath(item, parentElementPath))
+        }
+        
+        const cleanedObj: any = {}
+        for (const [key, value] of Object.entries(obj)) {
+          // Transform keys by removing parent path prefix
+          if (typeof key === 'string' && key.startsWith(parentElementPath + '.')) {
+            const cleanedKey = key.substring(parentElementPath.length + 1)
+            cleanedObj[cleanedKey] = cleanJsonFromParentPath(value, parentElementPath)
+          } else {
+            // Keep keys that don't start with parent path
+            cleanedObj[key] = cleanJsonFromParentPath(value, parentElementPath)
+          }
+        }
+        
+        return cleanedObj
+      }
+      
+      const cleanedData = cleanJsonFromParentPath(choiceInputs, parentElementPath)
+      
+      // Format JSON with proper indentation for tooltip
+      return JSON.stringify(cleanedData, null, 2)
+      
+    } catch (error) {
+      return 'Error formatting JSON data'
+    }
+  }
 
   const openLevelModal = async (level: Level) => {
     setSelectedLevel(level)
@@ -969,9 +1049,30 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f0f0f0'
+                  
+                  // Show tooltip with JSON data
+                  const jsonContent = getJsonDataForTooltip(0)
+                  console.log('Setting tooltip for step 0:', { 
+                    jsonContent, 
+                    x: e.clientX, 
+                    y: e.clientY, 
+                    cardIndex,
+                    simulationData: simulationData ? 'exists' : 'null',
+                    inputsLength: simulationData?.inputs?.length || 'no inputs'
+                  })
+                  setTooltip({
+                    visible: true,
+                    x: e.clientX,
+                    y: e.clientY,
+                    content: jsonContent,
+                    entryId: entry.id,
+                    simulationId: simulationId,
+                    stepIndex: 0
+                  })
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent'
+                  setTooltip(null)
                 }}
                 onClick={(e) => {
                   e.preventDefault()
@@ -1035,9 +1136,23 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f0f0f0'
+                  
+                  // Show tooltip with JSON data
+                  const jsonContent = getJsonDataForTooltip(1)
+                  console.log('Setting tooltip for step 1:', { jsonContent, x: e.clientX, y: e.clientY })
+                  setTooltip({
+                    visible: true,
+                    x: e.clientX,
+                    y: e.clientY,
+                    content: jsonContent,
+                    entryId: entry.id,
+                    simulationId: simulationId,
+                    stepIndex: 1
+                  })
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent'
+                  setTooltip(null)
                 }}
                 onClick={(e) => {
                   e.preventDefault()
@@ -1101,9 +1216,30 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f0f0f0'
+                  
+                  // Show tooltip with JSON data
+                  const jsonContent = getJsonDataForTooltip(2)
+                  console.log('Setting tooltip for step 2:', { 
+                    jsonContent, 
+                    x: e.clientX, 
+                    y: e.clientY, 
+                    cardIndex,
+                    simulationData: simulationData ? 'exists' : 'null',
+                    inputsLength: simulationData?.inputs?.length || 'no inputs'
+                  })
+                  setTooltip({
+                    visible: true,
+                    x: e.clientX,
+                    y: e.clientY,
+                    content: jsonContent,
+                    entryId: entry.id,
+                    simulationId: simulationId,
+                    stepIndex: 2
+                  })
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent'
+                  setTooltip(null)
                 }}
                 onClick={(e) => {
                   e.preventDefault()
@@ -1287,6 +1423,46 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
           </Typography.Text>
         </div>
       </Modal>
+      
+      {/* JSON Tooltip for Eye Icon Hover */}
+      {tooltip && tooltip.visible && (
+        <div
+          style={{
+            position: 'fixed',
+            left: Math.min(tooltip.x + 10, window.innerWidth - 420),
+            top: Math.max(tooltip.y - 10, 10),
+            backgroundColor: '#1f1f1f',
+            color: '#ffffff',
+            padding: '12px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            width: '400px',
+            maxHeight: '300px',
+            overflow: 'auto',
+            zIndex: 9999,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            border: '1px solid #333',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            pointerEvents: 'none'
+          }}
+        >
+          <div style={{ 
+            marginBottom: '8px', 
+            paddingBottom: '8px', 
+            borderBottom: '1px solid #444',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            color: '#ffffff'
+          }}>
+            JSON Data Preview
+          </div>
+          <div style={{ color: '#ffffff' }}>
+            {tooltip.content}
+          </div>
+        </div>
+      )}
     </Form.Item>
   )
 }
@@ -3783,6 +3959,7 @@ export default function App() {
                                                     selectedChoices={selectedSimulationData?.data?.choices || null}
                                                     isReadOnly={Boolean(new URLSearchParams(window.location.search).get('simul_id'))}
                                                     openStepInfoModal={openStepInfoModal}
+                                                    simulationData={selectedSimulationData?.data}
                                                   />
                                                 )
                                               })()}
