@@ -2289,6 +2289,30 @@ export default function App() {
     }
   }
 
+  // Function to clean JSON data by removing parent element path references
+  const cleanJsonFromParentPath = (obj: any, parentElementPath: string): any => {
+    if (!obj || typeof obj !== 'object') return obj
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => cleanJsonFromParentPath(item, parentElementPath))
+    }
+    
+    const cleanedObj: any = {}
+    for (const [key, value] of Object.entries(obj)) {
+      let cleanedKey = key
+      
+      // If key starts with the parent element path followed by a dot, remove that prefix
+      if (typeof key === 'string' && key.startsWith(parentElementPath + '.')) {
+        cleanedKey = key.substring(parentElementPath.length + 1)
+      }
+      
+      // Recursively clean nested objects
+      cleanedObj[cleanedKey] = cleanJsonFromParentPath(value, parentElementPath)
+    }
+    
+    return cleanedObj
+  }
+
   const openStepInfoModal = async (entryId: string, simulationId: string, stepIndex: number) => {
     try {
       if (!selectedSimulationData || !selectedSimulationData.data) {
@@ -2318,9 +2342,16 @@ export default function App() {
 
       // Use inputs from simul_simul based on the card index
       // cardIndex corresponds to the absolute position of the card and maps to inputs[cardIndex]
-      const choiceInputs = Array.isArray(simulationData.inputs) 
+      let choiceInputs = Array.isArray(simulationData.inputs) 
         ? simulationData.inputs[cardIndex] || {}
         : simulationData.inputs
+      
+      // Get the parent element to find its path
+      const parentEntry = entries.find(e => e.id === entryId)
+      const parentElementPath = parentEntry?.path || `/config/${entryId}`
+      
+      // Clean the JSON data by removing parent element path references
+      choiceInputs = cleanJsonFromParentPath(choiceInputs, parentElementPath)
       
       const result = {
         choice_index: stepIndex,
