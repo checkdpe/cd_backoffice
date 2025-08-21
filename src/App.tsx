@@ -373,6 +373,11 @@ function D3Scatterplot({
       }
       isDragging = true
       selectionRectElement.style.display = 'block'
+      
+      // Disable text selection during rectangle drawing
+      document.body.style.userSelect = 'none'
+      document.body.style.webkitUserSelect = 'none'
+      
       setSelectionRect({
         startX: startPoint.x,
         startY: startPoint.y,
@@ -417,6 +422,10 @@ function D3Scatterplot({
       if (!isDragging) return
       isDragging = false
       selectionRectElement.style.display = 'none'
+      
+      // Re-enable text selection
+      document.body.style.userSelect = ''
+      document.body.style.webkitUserSelect = ''
       
       const rect = svg.getBoundingClientRect()
       const endPoint = {
