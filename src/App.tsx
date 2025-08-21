@@ -476,12 +476,10 @@ function SettingsPage({ onClose, accessToken }: { onClose: () => void, accessTok
   const frontendVersion = import.meta.env.VITE_FRONT_VERSION || 'unknown'
 
   React.useEffect(() => {
-    console.log('SettingsPage useEffect running - loadSettings called')
     loadSettings()
   }, [])
 
   const loadSettings = async () => {
-    console.log('loadSettings function called at:', new Date().toISOString())
     if (!accessToken) {
       message.error('No access token available')
       return
@@ -501,14 +499,12 @@ function SettingsPage({ onClose, accessToken }: { onClose: () => void, accessTok
       }
 
       const result = await response.json()
-      console.log('Settings loaded:', result)
       setSettings(result.data || {})
 
       if (result.data && result.data.lastversion === false) {
         message.warning('Your browser version is outdated. Please hard-refresh your browser (Ctrl+F5 or Cmd+Shift+R) to get the latest version.')
       }
     } catch (error) {
-      console.error('Failed to load settings:', error)
       message.error('Failed to load settings')
     }
   }
@@ -536,7 +532,6 @@ function SettingsPage({ onClose, accessToken }: { onClose: () => void, accessTok
 
       message.success('Settings updated successfully')
     } catch (error) {
-      console.error('Failed to save settings:', error)
       message.error('Failed to save settings')
     } finally {
       setSaving(false)
@@ -622,8 +617,6 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
   const [humanReadable, setHumanReadable] = useState<string>('')
 
   const handleCheckboxChange = (level: Level, checked: boolean) => {
-    console.log(`🎯 LevelCheckboxes handleCheckboxChange: level=${level}, checked=${checked}, entry.id=${entry.id}, simulationId=${simulationId}`)
-    
     let newCheckedValues: Level[]
     if (checked) {
       newCheckedValues = [...checkedValues, level]
@@ -631,13 +624,10 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
       newCheckedValues = checkedValues.filter(v => v !== level)
     }
     
-    console.log(`📝 New checked values:`, newCheckedValues)
-    
     // Update local state
     setCheckedValues(newCheckedValues)
     
     // Immediately report to parent
-    console.log(`📤 Calling onCheckboxChange with entry.id=${entry.id}, simulationId=${simulationId}, newCheckedValues=`, newCheckedValues)
     onCheckboxChange(entry.id, simulationId, newCheckedValues)
   }
 
@@ -665,22 +655,12 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
       const choiceIndex = level === 1 ? 0 : 1
       const currentChoice = entry.simul.find(simul => simul.id === simulationId)?.choices?.[choiceIndex]
       
-      console.log('🔍 Debug openLevelModal:', {
-        level,
-        entryId: entry.id,
-        simulationId,
-        choiceIndex,
-        currentChoice,
-        allChoices: entry.simul.find(simul => simul.id === simulationId)?.choices
-      })
-      
       if (!currentChoice) {
         throw new Error('Choice not found')
       }
       
       // Make real API call to get the configuration data
       // Use choice ID as the alt parameter
-      console.log('🔧 Choice ID for API call:', currentChoice.id)
       
       // Use choice_id as alt parameter to track which choice was selected
       const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_setting_edit?element=${entry.id}&alt=${currentChoice.id}`, {
@@ -696,7 +676,6 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
       }
       
       const apiResponse = await response.json()
-      console.log('API response for level configuration:', apiResponse)
       
       // Pre-initialize the JSON editor with real API data
       setJsonData(apiResponse.json_action || {})
@@ -704,7 +683,6 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
       setHumanReadable(apiResponse.human_readable || '')
       
     } catch (error) {
-      console.error('Failed to load level configuration:', error)
       message.error('Failed to load configuration data')
       // Fallback to empty JSON
       setJsonData({})
@@ -944,15 +922,6 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 // Use the actual choice ID from the init endpoint
                 const altValue = selectedChoice.id
                 
-                console.log('🔍 CHOICE SELECTION:', {
-                  selectedLevel,
-                  choiceIndex,
-                  'choices[0].id': simulation.choices[0]?.id,
-                  'choices[1].id': simulation.choices[1]?.id,
-                  'selectedChoice.id': selectedChoice.id,
-                  'altValue': altValue
-                })
-                
                 if (altValue === undefined) {
                   throw new Error('No choice ID found in selected choice')
                 }
@@ -964,8 +933,6 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                   level: selectedLevel,
                   // Note: element and alt are URL parameters, not in body
                 }
-                
-                console.log('POST /simul_setting_edit with body:', postData)
                 
                 // Make the actual POST call to simul_setting_edit endpoint
                 // Note: element should be an int, alt should be a string
@@ -981,14 +948,6 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 }
                 
                 const elementId = elementIdMap[entry.id] || 0
-                
-                // FINAL DEBUG: Show what's being sent
-                console.log('🔍 API CALL:', {
-                  element: entry.id,
-                  elementId,
-                  alt: altValue,
-                  url: `...&alt=${altValue}`
-                })
                 
                 if (!refAdeme) {
                   message.error('No ref_ademe available')
@@ -1010,7 +969,6 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 }
                 
                 const result = await response.json()
-                console.log('POST /edit response:', result)
                 
                 message.success('Configuration saved successfully')
                 
@@ -1018,10 +976,9 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 setIsLevelModalVisible(false)
                 setSelectedLevel(null)
                 
-              } catch (error) {
-                console.error('Failed to save configuration:', error)
-                message.error('Failed to save configuration')
-              }
+                    } catch (error) {
+        message.error('Failed to save configuration')
+      }
             }}
           >
             OK
@@ -1194,15 +1151,17 @@ export default function App() {
   const [simulMaxId, setSimulMaxId] = useState<string | null>(null)
   
   const hasProcessedCode = React.useRef(false)
+  const simulMaxIdRef = React.useRef<string | null>(null)
   
   // Update simulMaxId when graphData changes
   React.useEffect(() => {
     if (graphData && graphData.length > 0) {
       const maxId = graphData.length.toString()
       setSimulMaxId(maxId)
-      console.log('📊 Updated simulMaxId to:', maxId, 'based on graph data length:', graphData.length)
+      simulMaxIdRef.current = maxId
     } else {
       setSimulMaxId(null)
+      simulMaxIdRef.current = null
     }
   }, [graphData])
   
@@ -1212,7 +1171,7 @@ export default function App() {
     const simulId = urlParams.get('simul_id')
     setSelectedSimulId(simulId)
     // When simulId exists with refAdeme, fetch simulation details
-    if (simulId && refAdeme && accessToken) {
+    if (simulId && refAdeme && accessToken && simulMaxId) {
       ;(async () => {
         try {
           const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}${simulMaxId ? `&simul_max_id=${simulMaxId}` : ''}`, {
@@ -1226,14 +1185,13 @@ export default function App() {
           const result = await response.json()
           setSelectedSimulationData(result)
         } catch (e) {
-          console.error('Failed to fetch simulation data', e)
           setSelectedSimulationData(null)
         }
       })()
     } else if (!simulId) {
       setSelectedSimulationData(null)
     }
-  }, [window.location.search, refAdeme, accessToken])
+  }, [window.location.search, refAdeme, accessToken, simulMaxId])
   
   // Listen for simulation selection events from D3Scatterplot
   React.useEffect(() => {
@@ -1242,10 +1200,10 @@ export default function App() {
       setSelectedSimulId(simulId)
       
       // Fetch simulation data for the selected simulation
-      if (simulId && refAdeme && accessToken) {
+      if (simulId && refAdeme && accessToken && simulMaxIdRef.current) {
         ;(async () => {
           try {
-            const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}${simulMaxId ? `&simul_max_id=${simulMaxId}` : ''}`, {
+            const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_simul?ref_ademe=${refAdeme}&simul_id=${simulId}${simulMaxIdRef.current ? `&simul_max_id=${simulMaxIdRef.current}` : ''}`, {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -1255,10 +1213,9 @@ export default function App() {
             if (!response.ok) throw new Error(`Failed: ${response.status}`)
             const result = await response.json()
             setSelectedSimulationData(result)
-          } catch (e) {
-            console.error('Failed to fetch simulation data', e)
-            setSelectedSimulationData(null)
-          }
+                  } catch (e) {
+          setSelectedSimulationData(null)
+        }
         })()
       }
     }
@@ -1287,28 +1244,21 @@ export default function App() {
   }
 
   const fetchSimulationsList = React.useCallback(async () => {
-    console.log('🔍 fetchSimulationsList called')
     try {
-      console.log('📡 Fetching from /simul_list endpoint...')
       const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_list')
       if (!response.ok) {
         throw new Error(`Failed to fetch simulations list: ${response.status}`)
       }
       const result = await response.json()
-      console.log('✅ Received response:', result)
       
       // Extract the data array from the response structure
       if (result.status === 'success' && Array.isArray(result.data)) {
-        console.log('✅ Extracted data array:', result.data)
         setSimulationsList(result.data)
       } else {
-        console.warn('⚠️ Unexpected response structure:', result)
         throw new Error('Invalid response structure')
       }
     } catch (error) {
-      console.error('❌ Error fetching simulations list:', error)
       // Fallback to mock data if API fails
-      console.log('🔄 Using fallback mock data')
       const mockData = [
         {"id": 1, "ref_ademe": "2508E0243162W", "status": "running"},
         {"id": 2, "ref_ademe": "2508E0243162X", "status": "completed"},
@@ -1319,25 +1269,19 @@ export default function App() {
   }, [])
 
   const fetchGraphData = React.useCallback(async (dpeId: string) => {
-    console.log('🔍 fetchGraphData called with dpe_id:', dpeId)
     try {
-      console.log('📡 Fetching from /simul_graph endpoint...')
       const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_graph?dpe_id=${dpeId}`)
       if (!response.ok) {
         throw new Error(`Failed to fetch graph data: ${response.status}`)
       }
       const result = await response.json()
-      console.log('✅ Received graph data:', result)
       
       if (result.data && Array.isArray(result.data)) {
-        console.log('✅ Extracted graph data array:', result.data)
         setGraphData(result.data)
       } else {
-        console.warn('⚠️ Unexpected graph response structure:', result)
         throw new Error('Invalid graph response structure')
       }
     } catch (error) {
-      console.error('❌ Error fetching graph data:', error)
       message.error('Failed to load graph data')
     }
   }, [])
@@ -1359,8 +1303,6 @@ export default function App() {
         return
       }
 
-      console.log('🚀 Creating new project with ref_ademe:', newProjectRefAdeme.trim())
-      
       // Call simul_new endpoint
       const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_new', {
         method: 'POST',
@@ -1374,12 +1316,10 @@ export default function App() {
 
       if (!response.ok) {
         const errorData = await response.text()
-        console.error('Failed to create new project:', { status: response.status, error: errorData })
         throw new Error(`Failed to create project: ${response.status} - ${errorData}`)
       }
 
       const result = await response.json()
-      console.log('✅ New project created successfully:', result)
       message.success('New project created successfully!')
       
       // Refresh the simulations list to include the new project
@@ -1393,7 +1333,6 @@ export default function App() {
       navigateToSimulation(newProjectRefAdeme.trim())
       
     } catch (error) {
-      console.error('Error creating new project:', error)
       message.error('Failed to create new project')
     }
   }
@@ -1412,7 +1351,6 @@ export default function App() {
 
       if (!response.ok) {
         const errorData = await response.text()
-        console.error('Error deleting project:', errorData)
         message.error(`Failed to delete project: ${response.status}`)
         return
       }
@@ -1423,7 +1361,6 @@ export default function App() {
       fetchSimulationsList()
       
     } catch (error) {
-      console.error('Error deleting project:', error)
       message.error('Failed to delete project')
     }
   }
@@ -1476,13 +1413,11 @@ export default function App() {
 
   const handleCheckboxChange = (entryId: string, simulationId: string, checkedValues: Level[]) => {
     const combinedKey = `${entryId}_${simulationId}`
-    console.log(`🔧 handleCheckboxChange called for combinedKey: ${combinedKey}, checkedValues:`, checkedValues)
     setCheckboxStates(prev => {
       const newState = {
         ...prev,
         [combinedKey]: checkedValues
       }
-      console.log(`📊 Updated checkboxStates:`, newState)
       return newState
     })
   }
@@ -1702,21 +1637,17 @@ export default function App() {
 
   const initializeForm = async () => {
     try {
-      console.log('🚀 initializeForm called with refAdeme:', refAdeme)
       setLoading(true)
       
       if (!accessToken) {
-        console.error('❌ No access token available')
         throw new Error('No access token available')
       }
       
       // Call the real API endpoint with Cognito token and ref_ademe as query parameter
       if (!refAdeme) {
-        console.error('❌ No ref_ademe available. Please check the URL path.')
         throw new Error('No ref_ademe available. Please check the URL path.')
       }
       
-      console.log('📡 Making API call to:', `https://api-dev.etiquettedpe.fr/backoffice/simul_init?ref_ademe=${refAdeme}`)
       const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_init?ref_ademe=${refAdeme}`, {
         method: 'GET',
         headers: {
@@ -1730,23 +1661,19 @@ export default function App() {
       }
       
       const apiData = await response.json()
-      console.log('🔍 Real API response from /simul_init:', apiData)
       
       // Transform API data to Entry format
       const transformedEntries: Entry[] = Object.entries(apiData).map(([key, value]: [string, any]) => {
-        console.log(`🔍 Processing entry ${key}:`, value)
         const entry = {
           id: key,
           label: value.label,
           category: value.category === 'enveloppe' ? 'Enveloppe' : value.category,
           path: value.path || `/config/${key}`,
           simul: (value.simul || []).map((simul: any) => {
-            console.log(`  🔍 Processing simulation ${simul.id}:`, simul)
             return {
               ...simul,
               // Ensure scope has the correct structure with selected state
               scope: (simul.scope || []).map((scopeItem: any) => {
-                console.log(`    🔍 Processing scope item:`, scopeItem)
                 return {
                   id: scopeItem.id || scopeItem.label,
                   label: scopeItem.label || scopeItem.id,
@@ -1757,12 +1684,10 @@ export default function App() {
             }
           })
         }
-        console.log(`✅ Transformed entry ${key}:`, entry)
         return entry
       })
       
       setEntries(transformedEntries)
-      console.log('🔍 Transformed entries:', transformedEntries)
       
       // Initialize form values based on checked choices from first simulation
       const initialValues: LevelsForm = {}
@@ -1794,7 +1719,6 @@ export default function App() {
             })
             
             initialCheckboxStates[combinedKey] = checkedLevels
-            console.log(`Initialized checkbox states for ${combinedKey}:`, checkedLevels)
           }
         })
       })
@@ -1806,7 +1730,6 @@ export default function App() {
       }
       
     } catch (error) {
-      console.error('Failed to initialize form:', error)
       message.error('Failed to load simulation configuration')
     } finally {
       setLoading(false)
@@ -1828,18 +1751,10 @@ export default function App() {
 
   // Extract ref_ademe from URL when component mounts
   React.useEffect(() => {
-    console.log('🔍 Current URL:', window.location.href)
-    console.log('🔍 Current pathname:', window.location.pathname)
-    
     const extractedRefAdeme = extractRefAdemeFromUrl()
-    console.log('🔍 Extracted ref_ademe:', extractedRefAdeme)
     
     if (extractedRefAdeme) {
       setRefAdeme(extractedRefAdeme)
-      console.log('✅ Set ref_ademe state to:', extractedRefAdeme)
-    } else {
-      console.warn('⚠️ No valid ref_ademe found in URL path')
-      console.warn('⚠️ Expected format: http://localhost:5173/2508E0243162W')
     }
   }, [])
 
@@ -1847,7 +1762,6 @@ export default function App() {
   const handleAuthCallback = async (code: string) => {
     // Prevent duplicate calls
     if (isProcessingAuth || isAuthenticated || hasProcessedCode.current) {
-      console.log('Auth already in progress, user already authenticated, or code already processed, skipping...')
       return
     }
     
@@ -1860,13 +1774,6 @@ export default function App() {
       const cognitoDomain = 'checkdpe-dev-auth.auth.eu-west-3.amazoncognito.com'
       const clientId = '1k9lvvlnhs320okctrklckeh50'
       const redirectUri = window.location.origin
-      
-      console.log('Token exchange parameters:', {
-        cognitoDomain,
-        clientId,
-        redirectUri,
-        code: code.substring(0, 10) + '...' // Log partial code for debugging
-      })
       
       // For Cognito, we need to use the exact same redirect_uri that was used in the authorization request
       const tokenResponse = await fetch(`https://${cognitoDomain}/oauth2/token`, {
@@ -1886,16 +1793,10 @@ export default function App() {
       
       if (!tokenResponse.ok) {
         const errorData = await tokenResponse.text()
-        console.error('Token exchange failed:', {
-          status: tokenResponse.status,
-          statusText: tokenResponse.statusText,
-          error: errorData
-        })
         throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorData}`)
       }
       
       const tokens = await tokenResponse.json()
-      console.log('Token exchange successful:', tokens)
       
       // Store the access token
       setAccessToken(tokens.access_token)
@@ -1930,7 +1831,6 @@ export default function App() {
       message.success('Successfully logged in!')
       
     } catch (error) {
-      console.error('Authentication failed:', error)
       message.error('Authentication failed')
     } finally {
       setIsProcessingAuth(false)
@@ -1939,75 +1839,41 @@ export default function App() {
 
   // Check for authentication callback on component mount - only run once
   React.useEffect(() => {
-    console.log('useEffect for auth callback triggered')
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
     
-    console.log('URL params check:', { 
-      hasCode: !!code, 
-      codeLength: code?.length,
-      hasProcessedCode: hasProcessedCode.current,
-      isProcessingAuth,
-      isAuthenticated
-    })
-    
     if (code && !hasProcessedCode.current) {
-      console.log('Processing auth callback with code:', code.substring(0, 10) + '...')
       handleAuthCallback(code)
-    } else {
-      console.log('Skipping auth callback:', { 
-        reason: !code ? 'no code' : 
-                hasProcessedCode.current ? 'already processed' : 
-                'other condition'
-      })
     }
   }, []) // Empty dependency array - only run once on mount
 
   // Initialize form when access token, authentication, and ref_ademe are available
   React.useEffect(() => {
-    console.log('🔍 useEffect dependencies:', { accessToken: !!accessToken, isAuthenticated, refAdeme })
     if (accessToken && isAuthenticated && refAdeme) {
-      console.log('✅ All conditions met, calling initializeForm')
       initializeForm()
-    } else {
-      console.log('❌ Conditions not met:', { 
-        hasAccessToken: !!accessToken, 
-        isAuthenticated, 
-        hasRefAdeme: !!refAdeme 
-      })
     }
   }, [accessToken, isAuthenticated, refAdeme])
 
   // Fetch simulations list when no ref_ademe is present
   React.useEffect(() => {
-    console.log('🔍 useEffect triggered - refAdeme:', refAdeme)
     if (!refAdeme) {
-      console.log('✅ No refAdeme, calling fetchSimulationsList')
       fetchSimulationsList()
-    } else {
-      console.log('❌ Has refAdeme, not fetching simulations list')
     }
   }, [refAdeme, fetchSimulationsList])
 
   // Also fetch simulations list on mount if no ref_ademe
   React.useEffect(() => {
-    console.log('🔍 useEffect on mount - refAdeme:', refAdeme)
     if (!refAdeme) {
-      console.log('✅ No refAdeme on mount, calling fetchSimulationsList')
       fetchSimulationsList()
-    } else {
-      console.log('❌ Has refAdeme on mount, not fetching simulations list')
     }
   }, []) // Empty dependency array - only run once on mount
 
   const totalCombinations = useMemo(() => {
     let total = 1
-    console.log('Calculating combinations with entries:', entries.length, 'and checkboxStates:', checkboxStates)
     
     entries.forEach(entry => {
       // Check if ANY simulation is active for this entry
       const hasActiveSimulation = entry.simul.some(simul => simul.active)
-      console.log(`Entry ${entry.id} (${entry.label}): active=${hasActiveSimulation}`)
       
       if (hasActiveSimulation) {
         // Calculate combinations for this entry by multiplying all active simulations
@@ -2017,17 +1883,14 @@ export default function App() {
             const combinedKey = `${entry.id}_${simul.id}`
             const simulationCheckboxState = checkboxStates[combinedKey] || [0]
             const checkedChoices = simulationCheckboxState.length
-            console.log(`  Simulation ${simul.id}: ${checkedChoices} choices → ${simulationCheckboxState}`)
             entryCombinations *= checkedChoices  // Multiply instead of add
           }
         })
         
-        console.log(`  Entry ${entry.id} total combinations: ${entryCombinations}`)
         total *= entryCombinations
       }
     })
     
-    console.log('Total combinations calculated:', total)
     return total
   }, [entries, checkboxStates])
 
@@ -2179,7 +2042,6 @@ export default function App() {
       }
 
       const result = await response.json()
-      console.log('Scope attached successfully:', result)
       
       // Refresh the simul_init data to get the new scope
       await initializeForm()
@@ -2187,7 +2049,6 @@ export default function App() {
       message.success('Scope attached successfully')
       
     } catch (error) {
-      console.error('Failed to attach scope:', error)
       message.error('Failed to attach scope')
     } finally {
       // Clear loading state
@@ -2234,20 +2095,13 @@ export default function App() {
 
 
   const toggleSimulLabelEdit = (entryId: string, simulId: string) => {
-    console.log('toggleSimulLabelEdit called with:', { entryId, simulId })
-    console.log('Current entries:', entries)
     const currentEntry = entries.find(e => e.id === entryId)
-    console.log('Current entry found:', currentEntry)
     const currentSimul = currentEntry?.simul.find(s => s.id === simulId)
-    console.log('Current simul found:', currentSimul)
     if (currentSimul) {
-      console.log('Setting editing label to:', currentSimul.label)
       setEditingSimulLabels(prev => ({
         ...prev,
         [`${entryId}-${simulId}`]: currentSimul.label
       }))
-    } else {
-      console.log('No simulation found, cannot edit')
     }
   }
 
@@ -2301,7 +2155,6 @@ export default function App() {
         
         message.success('Simulation label updated successfully')
       } catch (error) {
-        console.error('Failed to save simulation label:', error)
         message.error('Failed to save simulation label')
       }
     } else {
@@ -2319,17 +2172,13 @@ export default function App() {
   }
 
   const toggleSimulDescriptionEdit = (entryId: string, simulId: string) => {
-    console.log('toggleSimulDescriptionEdit called with:', { entryId, simulId })
     const currentEntry = entries.find(e => e.id === entryId)
     const currentSimul = currentEntry?.simul.find(s => s.id === simulId)
     if (currentSimul) {
-      console.log('Setting editing description to:', currentSimul.description || '')
       setEditingSimulDescriptions(prev => ({
         ...prev,
         [`${entryId}-${simulId}`]: currentSimul.description || ''
       }))
-    } else {
-      console.log('No simulation found, cannot edit description')
     }
   }
 
@@ -2383,7 +2232,6 @@ export default function App() {
         
         message.success('Simulation description updated successfully')
       } catch (error) {
-        console.error('Failed to save simulation description:', error)
         message.error('Failed to save simulation description')
       }
     } else {
@@ -2427,7 +2275,6 @@ export default function App() {
       }
 
       const result = await response.json()
-      console.log('Scenario added successfully:', result)
       
       // Refresh the simul_init data
       await initializeForm()
@@ -2435,7 +2282,6 @@ export default function App() {
       message.success('Scenario added successfully')
       
     } catch (error) {
-      console.error('Failed to add scenario:', error)
       message.error('Failed to add scenario')
     } finally {
       // Clear loading state
@@ -2445,34 +2291,51 @@ export default function App() {
 
   const openStepInfoModal = async (entryId: string, simulationId: string, stepIndex: number) => {
     try {
-      if (!accessToken || !refAdeme) {
-        message.error('No access token or ref_ademe available')
+      if (!selectedSimulationData || !selectedSimulationData.data) {
+        message.error('No simulation data available')
         return
       }
 
       setStepInfoLoading(true)
       setIsStepInfoModalVisible(true)
 
-      // Call the simul_step_info endpoint
-      const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_step_info?ref_ademe=${refAdeme}&group_id=${simulationId}&index=${stepIndex}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+      // Calculate which card this simulation belongs to among ENABLED cards only
+      const enabledCards: {entryId: string, simulId: string, entryIdx: number, simulIdx: number, label: string}[] = []
+      entries.forEach((e, entryIdx) => {
+        e.simul.filter(s => s.active).forEach((s, simulIdx) => {
+          enabledCards.push({entryId: e.id, simulId: s.id, entryIdx, simulIdx, label: s.label || 'no-label'})
+        })
       })
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`)
+      const cardIndex = enabledCards.findIndex(s => s.entryId === entryId && s.simulId === simulationId)
+      
+      const simulationData = selectedSimulationData.data
+      
+      if (!simulationData.inputs) {
+        message.error('No inputs data available for this simulation')
+        setStepInfoData(null)
+        return
       }
 
-      const result = await response.json()
-      console.log('Step info received:', result)
+      // Use inputs from simul_simul based on the card index
+      // cardIndex corresponds to the absolute position of the card and maps to inputs[cardIndex]
+      const choiceInputs = Array.isArray(simulationData.inputs) 
+        ? simulationData.inputs[cardIndex] || {}
+        : simulationData.inputs
+      
+      const result = {
+        choice_index: stepIndex,
+        card_index: cardIndex,
+        inputs: choiceInputs,
+        all_inputs_array: simulationData.inputs,
+        simulation_id: simulationId,
+        entry_id: entryId,
+        choices_array: simulationData.choices || []
+      }
+      
       setStepInfoData(result)
       
     } catch (error) {
-      console.error('Failed to fetch step info:', error)
-      message.error('Failed to fetch step info')
+      message.error('Failed to extract step info')
       setStepInfoData(null)
     } finally {
       setStepInfoLoading(false)
@@ -2491,8 +2354,6 @@ export default function App() {
       // Get current simulation data from local state first
       const currentEntry = entries.find(e => e.id === entryId)
       const currentSimul = currentEntry?.simul.find(s => s.id === simulationId)
-      
-      console.log('Opening simulation settings modal for:', { entryId, simulationId, currentSimul })
       
       // Pre-populate with current local data immediately
       setSettingLabel(currentSimul?.label || '')
@@ -2515,7 +2376,6 @@ export default function App() {
 
         if (response.ok) {
           const settingData = await response.json()
-          console.log('API data received:', settingData)
           
           // Update form with API data if available
           if (settingData.label) setSettingLabel(settingData.label)
@@ -2526,12 +2386,10 @@ export default function App() {
           }
         }
       } catch (apiError) {
-        console.log('API call failed, using local data only:', apiError)
         // Continue with local data
       }
       
     } catch (error) {
-      console.error('Failed to open simulation settings modal:', error)
       message.error('Failed to open simulation settings modal')
     }
   }
@@ -2603,7 +2461,6 @@ export default function App() {
       setSettingJsonData(null)
       
     } catch (error) {
-      console.error('Failed to save setting:', error)
       message.error('Failed to save setting')
     }
   }
@@ -2646,7 +2503,6 @@ export default function App() {
       setElementPath('')
       
     } catch (error) {
-      console.error('Failed to save element path:', error)
       message.error('Failed to save element path')
     }
   }
@@ -2733,13 +2589,11 @@ export default function App() {
       const formData = {
         ref_ademe: refAdeme,
         entries: entries.map(entry => {
-          console.log(`🔍 Preparing entry ${entry.id} for submission:`, entry)
           return {
             id: entry.id,
             label: entry.label,
             category: entry.category,
             simul: entry.simul.map((simul, simulIndex) => {
-              console.log(`  🔍 Preparing simulation ${simul.id} for submission:`, simul)
               return {
                 id: simul.id,
                 active: simul.active,
@@ -2747,7 +2601,6 @@ export default function App() {
                 description: simul.description,
                 path: simul.path,
                 scope: simul.scope?.map(scopeItem => {
-                  console.log(`    🔍 Preparing scope item for submission:`, scopeItem)
                   return {
                     id: scopeItem.id,
                     label: scopeItem.label,
@@ -2771,8 +2624,6 @@ export default function App() {
         timestamp: new Date().toISOString()
       }
 
-      console.log('Applying simulation:', formData)
-
       const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_init', {
         method: 'POST',
         headers: {
@@ -2784,36 +2635,28 @@ export default function App() {
 
       if (!response.ok) {
         const errorData = await response.text()
-        console.error('Simulation application failed:', { status: response.status, statusText: response.statusText, error: errorData })
         throw new Error(`Simulation application failed: ${response.status} - ${errorData}`)
       }
 
       const result = await response.json()
-      console.log('Simulation applied successfully:', result)
       message.success('Simulation applied successfully!')
       
       // Refresh graph data after successful submission
-      console.log('🔄 Refreshing graph data...')
       try {
         if (refAdeme) {
           await fetchGraphData(refAdeme)
-          console.log('✅ Graph data refreshed successfully')
           
           // Auto-switch to results tab
           setActiveTab('results')
-          console.log('🔄 Switched to results tab')
         } else {
-          console.warn('No refAdeme available, skipping graph refresh')
           message.warning('Simulation applied but no project reference available for results.')
         }
         
       } catch (graphError) {
-        console.error('Failed to refresh graph data:', graphError)
         message.warning('Simulation applied but failed to refresh results. Please check the Results tab manually.')
       }
       
     } catch (error) {
-      console.error('Error submitting form:', error)
       message.error('Failed to apply simulation')
     }
   }
@@ -2972,11 +2815,9 @@ export default function App() {
                   </Button>
                 </div>
                 
-                {/* Debug info */}
+                                  {/* View mode selector */}
                 <div style={{ marginBottom: '16px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
-                  <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-                    Debug: simulationsList type: {typeof simulationsList}, length: {Array.isArray(simulationsList) ? simulationsList.length : 'N/A'}
-                  </Typography.Text>
+
                   <div style={{ marginTop: '4px' }}>
                     <Typography.Text type="secondary" style={{ fontSize: '11px' }}>
                       View: {' '}
@@ -3266,12 +3107,9 @@ export default function App() {
                                           type="text"
                                           size="small"
                                           icon={<EditOutlined />}
-                                          onClick={() => {
-                                            console.log('Main edit button clicked for entry:', entry.id)
-                                            console.log('Current editMode state:', editMode)
-                                            toggleEntryEditMode(entry.id)
-                                            console.log('After toggle, editMode will be:', !editMode[entry.id])
-                                          }}
+                                                  onClick={() => {
+          toggleEntryEditMode(entry.id)
+        }}
                                           title={editMode[entry.id] ? "Exit edit mode" : "Enter edit mode"}
                                           style={{ 
                                             fontSize: '12px', 
@@ -3344,10 +3182,9 @@ export default function App() {
                                                       type="text"
                                                       size="small"
                                                       icon={<EditOutlined />}
-                                                      onClick={() => {
-                                                        console.log('Edit button clicked for:', { entryId: entry.id, simulId: simul.id })
-                                                        toggleSimulLabelEdit(entry.id, simul.id)
-                                                      }}
+                                                              onClick={() => {
+          toggleSimulLabelEdit(entry.id, simul.id)
+        }}
                                                       style={{ padding: '2px 4px', fontSize: '10px' }}
                                                       title="Edit label"
                                                     />
@@ -3400,10 +3237,9 @@ export default function App() {
                                                       type="text"
                                                       size="small"
                                                       icon={<EditOutlined />}
-                                                      onClick={() => {
-                                                        console.log('Edit description button clicked for:', { entryId: entry.id, simulId: simul.id })
-                                                        toggleSimulDescriptionEdit(entry.id, simul.id)
-                                                      }}
+                                                              onClick={() => {
+          toggleSimulDescriptionEdit(entry.id, simul.id)
+        }}
                                                       style={{ padding: '2px 4px', fontSize: '10px' }}
                                                       title="Edit description"
                                                     />
@@ -3524,14 +3360,7 @@ export default function App() {
                                                   
                                                   const directionalArrow = getDirectionalArrow(checkText)
                                                   
-                                                  // Debug logging to see what's happening
-                                                  console.log('Scope item:', {
-                                                    label: scopeItem.label,
-                                                    description: scopeItem.description,
-                                                    checkText,
-                                                    isCardinalDirection,
-                                                    directionalArrow
-                                                  })
+
                                                   
                                                   return (
                                                     <div
@@ -3632,13 +3461,7 @@ export default function App() {
                                                 })
                                                 const globalCardIndex = allEnabledSimulations.findIndex(s => s.entryId === entry.id && s.simulId === simul.id)
                                                 
-                                                console.log('🔍 Debug LevelCheckboxes:', {
-                                                  entryId: entry.id,
-                                                  simulationId: simul.id,
-                                                  allEnabledSimulations,
-                                                  globalCardIndex,
-                                                  selectedChoices: selectedSimulationData?.data?.choices || null
-                                                })
+
                                                 return (
                                                   <LevelCheckboxes 
                                                     entry={entry} 
@@ -4091,7 +3914,7 @@ export default function App() {
 
         {/* Step Info Modal */}
         <Modal
-          title="Step Information"
+          title="Choice Inputs"
           open={isStepInfoModalVisible}
           onCancel={() => {
             setIsStepInfoModalVisible(false)
@@ -4102,28 +3925,38 @@ export default function App() {
         >
           {stepInfoLoading ? (
             <div style={{ textAlign: 'center', padding: '40px' }}>
-              <Typography.Text>Loading step information...</Typography.Text>
+              <Typography.Text>Loading choice inputs...</Typography.Text>
             </div>
           ) : stepInfoData ? (
             <div>
               <Typography.Title level={4} style={{ marginBottom: '16px' }}>
-                Step Details
+                Choice {stepInfoData.choice_index} Inputs
+              </Typography.Title>
+              <Typography.Text type="secondary" style={{ marginBottom: '16px', display: 'block' }}>
+                Card #{stepInfoData.card_index + 1} - Choice {stepInfoData.choice_index} from simulation #{stepInfoData.simulation_id}
+              </Typography.Text>
+              <Typography.Text type="secondary" style={{ marginBottom: '16px', display: 'block' }}>
+                Choices array: [{stepInfoData.choices_array.join(', ')}] - Showing inputs[{stepInfoData.card_index}] from inputs array
+              </Typography.Text>
+              <Typography.Title level={5} style={{ marginBottom: '8px' }}>
+                Selected Input:
               </Typography.Title>
               <Input.TextArea
-                value={JSON.stringify(stepInfoData, null, 2)}
+                value={JSON.stringify(stepInfoData.inputs, null, 2)}
                 readOnly
-                rows={20}
+                rows={10}
                 style={{ 
                   width: '100%', 
                   fontFamily: 'monospace',
                   fontSize: '12px',
-                  backgroundColor: '#f5f5f5'
+                  backgroundColor: '#f5f5f5',
+                  marginBottom: '16px'
                 }}
               />
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '40px' }}>
-              <Typography.Text type="secondary">No step information available</Typography.Text>
+              <Typography.Text type="secondary">No choice inputs available</Typography.Text>
             </div>
           )}
         </Modal>
