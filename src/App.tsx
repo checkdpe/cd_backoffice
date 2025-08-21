@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react'
 import { ConfigProvider, App as AntdApp, Layout, Typography, Form, Checkbox, Space, Button, Card, theme, Divider, Row, Col, Tag, Modal, Input, message, Switch, Tabs, Table } from 'antd'
-import { EditOutlined, PlusOutlined, DeleteOutlined, ArrowRightOutlined, ArrowLeftOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { EditOutlined, PlusOutlined, DeleteOutlined, ArrowRightOutlined, ArrowLeftOutlined, CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons'
 
 type Level = 0 | 1 | 2
 
@@ -589,7 +589,7 @@ function SettingsPage({ onClose, accessToken }: { onClose: () => void, accessTok
   )
 }
 
-function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheckboxChange, onLabelUpdate, accessToken, refAdeme, selectedChoices, isReadOnly }: {
+function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheckboxChange, onLabelUpdate, accessToken, refAdeme, selectedChoices, isReadOnly, openStepInfoModal }: {
   entry: Entry
   simulationId: string
   cardIndex: number
@@ -600,6 +600,7 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
   refAdeme: string | null
   selectedChoices: number[] | null
   isReadOnly: boolean
+  openStepInfoModal: (entryId: string, simulationId: string, stepIndex: number) => void
 }) {
   // Initialize checked values based on API data
   const getInitialCheckedValues = (): Level[] => {
@@ -720,14 +721,41 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
           checked={checkedValues.includes(0)}
           onChange={(e) => handleCheckboxChange(0, e.target.checked)}
         >
-          <span style={{
-            border: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '3px solid #000' : 'none',
-            padding: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '2px 4px' : '0',
-            borderRadius: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '4px' : '0',
-            fontWeight: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? 'bold' : 'normal'
-          }}>
-            valeur courante
-          </span>
+          <Space>
+            <span style={{
+              border: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '3px solid #000' : 'none',
+              padding: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '2px 4px' : '0',
+              borderRadius: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? '4px' : '0',
+              fontWeight: selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 ? 'bold' : 'normal'
+            }}>
+              valeur courante
+            </span>
+            {selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 0 && (
+              <EyeOutlined 
+                style={{ 
+                  fontSize: '12px', 
+                  color: '#000000', 
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s ease',
+                  marginLeft: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f0f0f0'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  openStepInfoModal(entry.id, simulationId, 0)
+                }}
+                title="View step details"
+              />
+            )}
+          </Space>
         </Checkbox>
         <Checkbox 
           disabled={!checkedValues.includes(0) || isReadOnly}
@@ -770,6 +798,31 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 openLevelModal(1)
               }}
             />
+            {selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 1 && (
+              <EyeOutlined 
+                style={{ 
+                  fontSize: '12px', 
+                  color: '#000000', 
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s ease',
+                  marginLeft: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f0f0f0'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  openStepInfoModal(entry.id, simulationId, 1)
+                }}
+                title="View step details"
+              />
+            )}
           </Space>
         </Checkbox>
         <Checkbox 
@@ -813,6 +866,31 @@ function LevelCheckboxes({ entry, simulationId, cardIndex, resetTrigger, onCheck
                 openLevelModal(2)
               }}
             />
+            {selectedChoices && Array.isArray(selectedChoices) && selectedChoices[cardIndex] === 2 && (
+              <EyeOutlined 
+                style={{ 
+                  fontSize: '12px', 
+                  color: '#000000', 
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s ease',
+                  marginLeft: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f0f0f0'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  openStepInfoModal(entry.id, simulationId, 2)
+                }}
+                title="View step details"
+              />
+            )}
           </Space>
         </Checkbox>
 
@@ -1110,6 +1188,11 @@ export default function App() {
   const [simulationToDelete, setSimulationToDelete] = useState<{ entryId: string; simulationId: string; simulationName: string } | null>(null)
   const [addingScenario, setAddingScenario] = useState<Record<string, boolean>>({})
   const [attachingScope, setAttachingScope] = useState<Record<string, boolean>>({})
+  
+  // Step info modal state
+  const [isStepInfoModalVisible, setIsStepInfoModalVisible] = useState(false)
+  const [stepInfoData, setStepInfoData] = useState<any>(null)
+  const [stepInfoLoading, setStepInfoLoading] = useState(false)
   const hasProcessedCode = React.useRef(false)
   
   // Sync selectedSimulId with URL parameter
@@ -2349,6 +2432,42 @@ export default function App() {
     }
   }
 
+  const openStepInfoModal = async (entryId: string, simulationId: string, stepIndex: number) => {
+    try {
+      if (!accessToken || !refAdeme) {
+        message.error('No access token or ref_ademe available')
+        return
+      }
+
+      setStepInfoLoading(true)
+      setIsStepInfoModalVisible(true)
+
+      // Call the simul_step_info endpoint
+      const response = await fetch(`https://api-dev.etiquettedpe.fr/backoffice/simul_step_info?ref_ademe=${refAdeme}&group_id=${simulationId}&index=${stepIndex}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('Step info received:', result)
+      setStepInfoData(result)
+      
+    } catch (error) {
+      console.error('Failed to fetch step info:', error)
+      message.error('Failed to fetch step info')
+      setStepInfoData(null)
+    } finally {
+      setStepInfoLoading(false)
+    }
+  }
+
   const openSettingEditModal = async (entryId: string, simulationId: string) => {
     try {
       if (!accessToken) {
@@ -3076,9 +3195,17 @@ export default function App() {
                         
 
                         
-                        {/* Form content - centered and unaffected by house */}
-                        <Row justify="center">
-                          <Col xs={24} sm={22} md={20} lg={18} xl={16} xxl={14}>
+                        {/* Form content with columns layout */}
+                        <Row gutter={24}>
+                          {/* Left column for floating info panel (hidden on mobile) */}
+                          <Col xs={0} sm={0} md={6} lg={6} xl={6} xxl={6}>
+                            <div style={{ position: 'sticky', top: '24px' }}>
+                              {/* Reserved for future content */}
+                            </div>
+                          </Col>
+                          
+                          {/* Center column for the form */}
+                          <Col xs={24} sm={24} md={14} lg={14} xl={14} xxl={14}>
                                   <Card 
                     title={
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -3484,18 +3611,39 @@ export default function App() {
                                           {/* Choices for this simulation */}
                                           {simul.active && simul.choices && simul.choices.length > 0 && (
                                             <div style={{ marginTop: '8px' }}>
-                                              <LevelCheckboxes 
-                                                entry={entry} 
-                                                simulationId={simul.id}
-                                                cardIndex={cardIndex}
-                                                resetTrigger={resetTrigger} 
-                                                onCheckboxChange={handleCheckboxChange}
-                                                onLabelUpdate={updateChoiceLabel}
-                                                accessToken={accessToken}
-                                                refAdeme={refAdeme}
-                                                selectedChoices={selectedSimulationData?.data?.choices || null}
-                                                isReadOnly={Boolean(new URLSearchParams(window.location.search).get('simul_id'))}
-                                              />
+                                              {(() => {
+                                                // Calculate global position of this simulation among ALL enabled simulations
+                                                const allEnabledSimulations: {entryId: string, simulId: string}[] = []
+                                                entries.forEach(e => {
+                                                  e.simul.filter(s => s.active).forEach(s => {
+                                                    allEnabledSimulations.push({entryId: e.id, simulId: s.id})
+                                                  })
+                                                })
+                                                const globalCardIndex = allEnabledSimulations.findIndex(s => s.entryId === entry.id && s.simulId === simul.id)
+                                                
+                                                console.log('🔍 Debug LevelCheckboxes:', {
+                                                  entryId: entry.id,
+                                                  simulationId: simul.id,
+                                                  allEnabledSimulations,
+                                                  globalCardIndex,
+                                                  selectedChoices: selectedSimulationData?.data?.choices || null
+                                                })
+                                                return (
+                                                  <LevelCheckboxes 
+                                                    entry={entry} 
+                                                    simulationId={simul.id}
+                                                    cardIndex={globalCardIndex}
+                                                    resetTrigger={resetTrigger} 
+                                                    onCheckboxChange={handleCheckboxChange}
+                                                    onLabelUpdate={updateChoiceLabel}
+                                                    accessToken={accessToken}
+                                                    refAdeme={refAdeme}
+                                                    selectedChoices={selectedSimulationData?.data?.choices || null}
+                                                    isReadOnly={Boolean(new URLSearchParams(window.location.search).get('simul_id'))}
+                                                    openStepInfoModal={openStepInfoModal}
+                                                  />
+                                                )
+                                              })()}
                                             </div>
                                           )}
                                         </div>
@@ -3558,8 +3706,44 @@ export default function App() {
                   <Typography.Text strong>Current values:</Typography.Text>
                   <div style={{ marginTop: 8 }}>{summary}</div>
                 </Card>
-                        </Col>
-                      </Row>
+                          </Col>
+                          
+                          {/* Right column for selected simulation info (hidden on mobile) */}
+                          <Col xs={0} sm={0} md={4} lg={4} xl={4} xxl={4}>
+                            <div style={{ position: 'sticky', top: '24px' }}>
+                              {/* Selected simulation data panel - shows clicked simulation, not hovered */}
+                              {selectedSimulId && selectedSimulationData && (
+                                <div
+                                  style={{
+                                    backgroundColor: '#000',
+                                    color: '#fff',
+                                    padding: '16px',
+                                    borderRadius: '8px',
+                                    marginBottom: '16px',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                                    fontSize: '12px',
+                                    lineHeight: '1.4'
+                                  }}
+                                >
+                                  <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px' }}>
+                                    Selected: Simulation #{selectedSimulId}
+                                  </div>
+                                  {selectedSimulationData.data?.choices && (
+                                    <div style={{ marginBottom: '4px' }}>
+                                      <strong>Choices:</strong> [{selectedSimulationData.data.choices.join(', ')}]
+                                    </div>
+                                  )}
+                                  <div style={{ marginBottom: '4px' }}>
+                                    <strong>Inputs:</strong> {selectedSimulationData.data?.inputs ? Object.keys(selectedSimulationData.data.inputs).length : 0} fields
+                                  </div>
+                                  <div>
+                                    <strong>Outputs:</strong> {selectedSimulationData.data?.outputs ? Object.keys(selectedSimulationData.data.outputs).length : 0} fields
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </Col>
+                        </Row>
                     </div>
                   )
                 },
@@ -3576,7 +3760,7 @@ export default function App() {
               </Col>
               
               {/* Center column for the graph */}
-              <Col xs={24} sm={24} md={12} lg={12} xl={12} xxl={12}>
+              <Col xs={24} sm={24} md={14} lg={14} xl={14} xxl={14}>
                 <Card title="Simulation Results" bordered>
                   <D3Scatterplot 
                     data={mockResults} 
@@ -3640,7 +3824,7 @@ export default function App() {
               </Col>
               
               {/* Right column for selected simulation info (hidden on mobile) */}
-              <Col xs={0} sm={0} md={6} lg={6} xl={6} xxl={6}>
+              <Col xs={0} sm={0} md={4} lg={4} xl={4} xxl={4}>
                 <div style={{ position: 'sticky', top: '24px' }}>
                   {/* Selected simulation data panel - shows clicked simulation, not hovered */}
                   {selectedSimulId && selectedSimulationData && (
@@ -3891,6 +4075,45 @@ export default function App() {
               This action cannot be undone.
             </Typography.Text>
           </div>
+        </Modal>
+
+        {/* Step Info Modal */}
+        <Modal
+          title="Step Information"
+          open={isStepInfoModalVisible}
+          onCancel={() => {
+            setIsStepInfoModalVisible(false)
+            setStepInfoData(null)
+          }}
+          footer={null}
+          width={800}
+        >
+          {stepInfoLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px' }}>
+              <Typography.Text>Loading step information...</Typography.Text>
+            </div>
+          ) : stepInfoData ? (
+            <div>
+              <Typography.Title level={4} style={{ marginBottom: '16px' }}>
+                Step Details
+              </Typography.Title>
+              <Input.TextArea
+                value={JSON.stringify(stepInfoData, null, 2)}
+                readOnly
+                rows={20}
+                style={{ 
+                  width: '100%', 
+                  fontFamily: 'monospace',
+                  fontSize: '12px',
+                  backgroundColor: '#f5f5f5'
+                }}
+              />
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '40px' }}>
+              <Typography.Text type="secondary">No step information available</Typography.Text>
+            </div>
+          )}
         </Modal>
       </AntdApp>
     </ConfigProvider>
