@@ -1565,6 +1565,7 @@ export default function App() {
   const [simulationToDelete, setSimulationToDelete] = useState<{ entryId: string; simulationId: string; simulationName: string } | null>(null)
   const [addingScenario, setAddingScenario] = useState<Record<string, boolean>>({})
   const [attachingScope, setAttachingScope] = useState<Record<string, boolean>>({})
+  const [togglingSimulation, setTogglingSimulation] = useState<Record<string, boolean>>({})
   
   // Step info modal state
   const [isStepInfoModalVisible, setIsStepInfoModalVisible] = useState(false)
@@ -2381,37 +2382,78 @@ export default function App() {
     ))
   }
 
-  const toggleSimulation = (entryId: string, simulationId: string) => {
-    setEntries(prev => prev.map(entry => {
-      if (entry.id === entryId) {
-        const currentSimul = entry.simul.find(simul => simul.id === simulationId)
-        if (!currentSimul) return entry
-        
-        const newActiveState = !currentSimul.active
-        
-        // If we're activating a simulation, deactivate all others for this element
-        if (newActiveState) {
-          return {
-            ...entry,
-            simul: entry.simul.map(simul => ({
-              ...simul,
-              active: simul.id === simulationId // Only the clicked one is active
+    const toggleSimulation = async (entryId: string, simulationId: string) => {
+    try {
+      if (!accessToken) {
+        message.error('No access token available')
+        return
+      }
+
+      const currentSimul = entries.find(entry => entry.id === entryId)?.simul.find(simul => simul.id === simulationId)
+      if (!currentSimul) return
+      
+      const newActiveState = !currentSimul.active
+      const status = newActiveState ? 1 : 0
+
+      // Set loading state for this specific simulation
+      setTogglingSimulation(prev => ({ ...prev, [`${entryId}-${simulationId}`]: true }))
+
+      // Call the simul_group_switch endpoint
+      const response = await fetch('https://api-dev.etiquettedpe.fr/backoffice/simul_group_switch', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          group_id: simulationId,
+          status: status
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`)
+      }
+
+      // If API call successful, update local state
+      setEntries(prev => prev.map(entry => {
+        if (entry.id === entryId) {
+          const currentSimul = entry.simul.find(simul => simul.id === simulationId)
+          if (!currentSimul) return entry
+          
+          // If we're activating a simulation, deactivate all others for this element
+          if (newActiveState) {
+            return {
+              ...entry,
+              simul: entry.simul.map(simul => ({
+                ...simul,
+                active: simul.id === simulationId // Only the clicked one is active
             }))
-          }
-        } else {
-          // If we're deactivating, just toggle the current one
-          return {
-            ...entry,
-            simul: entry.simul.map(simul => 
-              simul.id === simulationId 
-                ? { ...simul, active: newActiveState }
-                : simul
-            )
+            }
+          } else {
+            // If we're deactivating, just toggle the current one
+            return {
+              ...entry,
+              simul: entry.simul.map(simul => 
+                simul.id === simulationId 
+                  ? { ...simul, active: newActiveState }
+                  : simul
+              )
+            }
           }
         }
-      }
-      return entry
-    }))
+        return entry
+      }))
+
+      message.success(`Simulation ${newActiveState ? 'activated' : 'deactivated'} successfully`)
+      
+    } catch (error) {
+      console.error('Failed to toggle simulation:', error)
+      message.error('Failed to toggle simulation. Please try again.')
+    } finally {
+      // Clear loading state
+      setTogglingSimulation(prev => ({ ...prev, [`${entryId}-${simulationId}`]: false }))
+    }
   }
 
   const removeSimulation = (entryId: string, simulationId: string) => {
@@ -3715,7 +3757,8 @@ export default function App() {
                                               <Switch
                                                 checked={simul.active}
                                                 onChange={() => toggleSimulation(entry.id, simul.id)}
-                                                disabled={Boolean(selectedSimulId)}
+                                                disabled={Boolean(selectedSimulId) || togglingSimulation[`${entry.id}-${simul.id}`]}
+                                                loading={togglingSimulation[`${entry.id}-${simul.id}`]}
                                                 size="small"
                                               />
                                             )}
